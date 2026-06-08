@@ -210,3 +210,10 @@ textarea {
   padding: 8px 10px;
   font-weight: 400;
 }
+
+.lancedb-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 12px;
+}
