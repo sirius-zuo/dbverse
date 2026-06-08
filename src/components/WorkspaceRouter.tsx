@@ -1,4 +1,5 @@
 import type { ConnectionProfile } from "../api/types";
+import { SQLiteWorkspace } from "../workspaces/sqlite/SQLiteWorkspace";
 
 interface WorkspaceRouterProps {
   profile: ConnectionProfile | null;
@@ -15,12 +16,7 @@ export function WorkspaceRouter({ profile }: WorkspaceRouterProps) {
   }
 
   if (profile.kind === "sqlite") {
-    return (
-      <section className="workspace">
-        <h2>SQLite Workspace</h2>
-        <p>{profile.displayName}</p>
-      </section>
-    );
+    return <SQLiteWorkspace profile={profile} />;
   }
 
   if (profile.kind === "postgresql") {

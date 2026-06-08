@@ -5,6 +5,8 @@ pub mod profiles;
 pub mod query_safety;
 pub mod result_model;
 
+use connectors::sqlite::SqliteConnector;
+
 use std::path::PathBuf;
 
 use connectors::ConnectorRegistry;
@@ -60,6 +62,32 @@ fn delete_connection(profile_id: uuid::Uuid) -> Result<Vec<ConnectionProfile>, A
     Ok(profiles)
 }
 
+#[tauri::command]
+fn sqlite_execute_file_query(
+    path: String,
+    sql: String,
+) -> Result<result_model::ResultSet, AppRuntimeError> {
+    let connection = rusqlite::Connection::open(path).map_err(|error| {
+        AppRuntimeError::User(errors::AppError {
+            category: errors::AppErrorCategory::ConnectionFailed,
+            message: "Could not open SQLite database.".to_string(),
+            recovery_hint: Some("Check that the file exists and is readable.".to_string()),
+            technical_details: Some(error.to_string()),
+            operation_id: None,
+        })
+    })?;
+
+    SqliteConnector::execute_sqlite_query(&connection, &sql).map_err(|error| {
+        AppRuntimeError::User(errors::AppError {
+            category: errors::AppErrorCategory::QueryError,
+            message: "SQLite query failed.".to_string(),
+            recovery_hint: None,
+            technical_details: Some(error.to_string()),
+            operation_id: None,
+        })
+    })
+}
+
 pub fn run() {
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
@@ -68,7 +96,8 @@ pub fn run() {
             get_capabilities_for_kind,
             list_connections,
             save_connection,
-            delete_connection
+            delete_connection,
+            sqlite_execute_file_query
         ])
         .run(tauri::generate_context!())
         .expect("failed to run dbverse");
