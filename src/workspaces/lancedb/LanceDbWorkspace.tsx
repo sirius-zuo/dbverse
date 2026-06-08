@@ -1,37 +1,11 @@
 import { useState } from "react";
 import type { ConnectionProfile, ResultSet } from "../../api/types";
 import { embedTextOpenAI } from "../../api/embeddings";
+import { searchLanceDb } from "../../api/lancedb";
 import { ResultGrid } from "../../components/ResultGrid";
 
 interface LanceDbWorkspaceProps {
   profile: ConnectionProfile;
-}
-
-function emptySearchResult(
-  vector: number[],
-  model: string
-): ResultSet {
-  return {
-    columns: [
-      { name: "model", valueType: "text", databaseType: null },
-      { name: "dimensions", valueType: "integer", databaseType: null },
-      { name: "preview", valueType: "vector", databaseType: null },
-    ],
-    rows: [
-      [
-        { type: "text", value: model },
-        { type: "integer", value: vector.length },
-        { type: "vector", value: vector.slice(0, 12) },
-      ],
-    ],
-    metadata: {
-      rowCount: 1,
-      elapsedMs: null,
-      operationId: null,
-      notice:
-        "Embedding generated. LanceDB nearest-neighbor search is added after connector wiring.",
-    },
-  };
 }
 
 export function LanceDbWorkspace({ profile }: LanceDbWorkspaceProps) {
@@ -39,6 +13,9 @@ export function LanceDbWorkspace({ profile }: LanceDbWorkspaceProps) {
     profile.config.kind === "lancedb" ? profile.config.path : "";
   const [apiKey, setApiKey] = useState("");
   const [model, setModel] = useState("text-embedding-3-small");
+  const [table, setTable] = useState("");
+  const [vectorField, setVectorField] = useState("vector");
+  const [topK, setTopK] = useState(10);
   const [query, setQuery] = useState("");
   const [result, setResult] = useState<ResultSet | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -47,7 +24,15 @@ export function LanceDbWorkspace({ profile }: LanceDbWorkspaceProps) {
     setMessage(null);
     try {
       const embedding = await embedTextOpenAI(apiKey, model, query);
-      setResult(emptySearchResult(embedding.vector, embedding.model));
+      setResult(
+        await searchLanceDb({
+          path,
+          table,
+          vectorField,
+          vector: embedding.vector,
+          topK,
+        })
+      );
     } catch (error) {
       setMessage(
         error instanceof Error ? error.message : "Embedding search failed."
@@ -83,6 +68,32 @@ export function LanceDbWorkspace({ profile }: LanceDbWorkspaceProps) {
           <input
             value={model}
             onChange={(event) => setModel(event.target.value)}
+          />
+        </label>
+      </div>
+      <div className="lancedb-controls">
+        <label className="field-label">
+          Table
+          <input
+            value={table}
+            onChange={(event) => setTable(event.target.value)}
+          />
+        </label>
+        <label className="field-label">
+          Vector field
+          <input
+            value={vectorField}
+            onChange={(event) => setVectorField(event.target.value)}
+          />
+        </label>
+        <label className="field-label">
+          Top K
+          <input
+            type="number"
+            min={1}
+            max={100}
+            value={topK}
+            onChange={(event) => setTopK(Number(event.target.value))}
           />
         </label>
       </div>

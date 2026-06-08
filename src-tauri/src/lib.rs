@@ -118,6 +118,26 @@ async fn postgres_execute_query(
 }
 
 #[tauri::command]
+async fn search_lancedb(
+    request: connectors::lancedb::LanceSearchRequest,
+) -> Result<result_model::ResultSet, AppRuntimeError> {
+    connectors::lancedb::search_lancedb(request)
+        .await
+        .map_err(|error| {
+            AppRuntimeError::User(errors::AppError {
+                category: errors::AppErrorCategory::QueryError,
+                message: "LanceDB search failed.".to_string(),
+                recovery_hint: Some(
+                    "Check the database path, table name, vector field, and embedding dimensions."
+                        .to_string(),
+                ),
+                technical_details: Some(error.to_string()),
+                operation_id: None,
+            })
+        })
+}
+
+#[tauri::command]
 async fn embed_text_openai(
     api_key: String,
     model: String,
@@ -137,7 +157,8 @@ pub fn run() {
             delete_connection,
             sqlite_execute_file_query,
             postgres_execute_query,
-            embed_text_openai
+            embed_text_openai,
+            search_lancedb
         ])
         .run(tauri::generate_context!())
         .expect("failed to run dbverse");

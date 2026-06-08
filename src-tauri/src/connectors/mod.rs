@@ -7,6 +7,7 @@ use crate::domain::{
 use crate::errors::{AppError, AppRuntimeError};
 use crate::result_model::ResultSet;
 
+pub mod lancedb;
 pub mod postgres;
 pub mod sqlite;
 
