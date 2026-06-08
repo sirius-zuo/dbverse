@@ -1,0 +1,27 @@
+import { describe, expect, it } from "vitest";
+import type { ConnectionProfile, ResultSet } from "./types";
+
+describe("shared api types", () => {
+  it("represents a sqlite profile without secrets in config", () => {
+    const profile: ConnectionProfile = {
+      id: "00000000-0000-4000-8000-000000000001",
+      displayName: "Local notes",
+      kind: "sqlite",
+      config: { kind: "sqlite", path: "/tmp/notes.db" },
+      secretRefs: [],
+      lastUsedAt: null
+    };
+
+    expect(profile.config.kind).toBe("sqlite");
+  });
+
+  it("represents typed result values", () => {
+    const result: ResultSet = {
+      columns: [{ name: "id", valueType: "integer", databaseType: "INTEGER" }],
+      rows: [[{ type: "integer", value: 7 }]],
+      metadata: { rowCount: 1, elapsedMs: 3, operationId: null, notice: null }
+    };
+
+    expect(result.rows[0][0]).toEqual({ type: "integer", value: 7 });
+  });
+});
