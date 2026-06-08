@@ -88,6 +88,15 @@ pub fn get_table_schema(connection: &Connection, table_name: &str) -> rusqlite::
     })
 }
 
+pub fn sqlite_get_total_rows(connection: &Connection, table_name: &str) -> rusqlite::Result<i64> {
+    let escaped = table_name.replace('"', "\"\"");
+    let mut stmt = connection.prepare(&format!(
+        "SELECT COUNT(*) FROM \"{}\"", escaped
+    ))?;
+    let count: i64 = stmt.query_row([], |row| row.get(0))?;
+    Ok(count)
+}
+
 pub fn get_table_page(connection: &Connection, table_name: &str, offset: usize, limit: usize) -> rusqlite::Result<ResultSet> {
     let escaped = table_name.replace('"', "\"\"");
     let sql = format!(
@@ -209,5 +218,30 @@ mod tests {
 
         let indexes = list_indexes(&conn).unwrap();
         assert!(indexes.iter().any(|(table, idx)| table == "items" && idx == "idx_name"));
+    }
+
+    #[test]
+    fn total_rows_returns_count() {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute("CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT)", []).unwrap();
+        for i in 1..=5 {
+            conn.execute("INSERT INTO items (name) VALUES (?)", [format!("item_{}", i)]).unwrap();
+        }
+        assert_eq!(sqlite_get_total_rows(&conn, "items").unwrap(), 5);
+    }
+
+    #[test]
+    fn total_rows_empty_table() {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute("CREATE TABLE empty_table (id INTEGER)", []).unwrap();
+        assert_eq!(sqlite_get_total_rows(&conn, "empty_table").unwrap(), 0);
+    }
+
+    #[test]
+    fn total_rows_quotes_identifier() {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute("CREATE TABLE \"Mixed Case Table\" (id INTEGER PRIMARY KEY)", []).unwrap();
+        conn.execute("INSERT INTO \"Mixed Case Table\" VALUES (1)", []).unwrap();
+        assert_eq!(sqlite_get_total_rows(&conn, "Mixed Case Table").unwrap(), 1);
     }
 }
