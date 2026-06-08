@@ -94,3 +94,27 @@ pub enum NavigationNodeType {
     Field,
     VectorField,
 }
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TableColumn {
+    pub name: String,
+    pub database_type: String,
+    pub is_primary_key: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TableIndex {
+    pub name: String,
+    pub column_names: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TableSchema {
+    pub name: String,
+    pub columns: Vec<TableColumn>,
+    pub indexes: Vec<TableIndex>,
+    pub row_count: usize,
+}
