@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { ConnectionProfile, ResultSet } from "./types";
+import type { ConnectionProfile, ResultSet, Tab } from "./types";
 
 describe("shared api types", () => {
   it("represents a sqlite profile without secrets in config", () => {
@@ -23,5 +23,10 @@ describe("shared api types", () => {
     };
 
     expect(result.rows[0][0]).toEqual({ type: "integer", value: 7 });
+  });
+
+  it("Tab union discriminates on type", () => {
+    const t: Tab = { id: "1", type: "new-connection", kind: "sqlite" };
+    expect(t.type).toBe("new-connection");
   });
 });
