@@ -109,3 +109,8 @@ export interface ResultSet {
   rows: ResultValue[][];
   metadata: ResultMetadata;
 }
+
+export type Tab =
+  | { id: string; type: "new-connection"; kind: DatabaseKind }
+  | { id: string; type: "edit-connection"; profile: ConnectionProfile }
+  | { id: string; type: "workspace"; profile: ConnectionProfile; unsaved: boolean };
