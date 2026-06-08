@@ -1,5 +1,6 @@
 pub mod connectors;
 pub mod domain;
+pub mod embeddings;
 pub mod errors;
 pub mod profiles;
 pub mod query_safety;
@@ -116,6 +117,15 @@ async fn postgres_execute_query(
     })
 }
 
+#[tauri::command]
+async fn embed_text_openai(
+    api_key: String,
+    model: String,
+    input: String,
+) -> Result<embeddings::EmbeddingResponse, AppRuntimeError> {
+    embeddings::embed_with_openai(api_key, model, input).await
+}
+
 pub fn run() {
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
@@ -126,7 +136,8 @@ pub fn run() {
             save_connection,
             delete_connection,
             sqlite_execute_file_query,
-            postgres_execute_query
+            postgres_execute_query,
+            embed_text_openai
         ])
         .run(tauri::generate_context!())
         .expect("failed to run dbverse");
