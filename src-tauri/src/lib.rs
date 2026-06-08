@@ -88,6 +88,34 @@ fn sqlite_execute_file_query(
     })
 }
 
+#[tauri::command]
+async fn postgres_execute_query(
+    profile: domain::ConnectionProfile,
+    password: Option<String>,
+    sql: String,
+) -> Result<result_model::ResultSet, AppRuntimeError> {
+    let connection_string = connectors::postgres::build_connection_string(&profile, password.as_deref())
+        .ok_or_else(|| {
+            AppRuntimeError::User(errors::AppError {
+                category: errors::AppErrorCategory::ConnectionFailed,
+                message: "Invalid PostgreSQL profile.".to_string(),
+                recovery_hint: Some("Check host, port, database, and username.".to_string()),
+                technical_details: None,
+                operation_id: None,
+            })
+        })?;
+
+    connectors::postgres::execute_postgres_query(&connection_string, &sql).await.map_err(|error| {
+        AppRuntimeError::User(errors::AppError {
+            category: errors::AppErrorCategory::QueryError,
+            message: "PostgreSQL query failed.".to_string(),
+            recovery_hint: None,
+            technical_details: Some(error.to_string()),
+            operation_id: None,
+        })
+    })
+}
+
 pub fn run() {
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
@@ -97,7 +125,8 @@ pub fn run() {
             list_connections,
             save_connection,
             delete_connection,
-            sqlite_execute_file_query
+            sqlite_execute_file_query,
+            postgres_execute_query
         ])
         .run(tauri::generate_context!())
         .expect("failed to run dbverse");
