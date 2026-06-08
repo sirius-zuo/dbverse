@@ -114,3 +114,21 @@ export type Tab =
   | { id: string; type: "new-connection"; kind: DatabaseKind }
   | { id: string; type: "edit-connection"; profile: ConnectionProfile }
   | { id: string; type: "workspace"; profile: ConnectionProfile; unsaved: boolean };
+
+export interface TableColumn {
+  name: string;
+  databaseType: string;
+  isPrimaryKey: boolean;
+}
+
+export interface TableIndex {
+  name: string;
+  columnNames: string[];
+}
+
+export interface TableSchema {
+  name: string;
+  columns: TableColumn[];
+  indexes: TableIndex[];
+  rowCount: number;
+}
