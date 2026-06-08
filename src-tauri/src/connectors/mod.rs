@@ -7,6 +7,8 @@ use crate::domain::{
 use crate::errors::{AppError, AppRuntimeError};
 use crate::result_model::ResultSet;
 
+pub mod sqlite;
+
 pub type AppResult<T> = Result<T, AppRuntimeError>;
 
 #[async_trait]
