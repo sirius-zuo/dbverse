@@ -1,4 +1,5 @@
 import type { ConnectionProfile } from "../api/types";
+import { LanceDbWorkspace } from "../workspaces/lancedb/LanceDbWorkspace";
 import { PostgresWorkspace } from "../workspaces/postgres/PostgresWorkspace";
 import { SQLiteWorkspace } from "../workspaces/sqlite/SQLiteWorkspace";
 
@@ -24,10 +25,5 @@ export function WorkspaceRouter({ profile }: WorkspaceRouterProps) {
     return <PostgresWorkspace profile={profile} />;
   }
 
-  return (
-    <section className="workspace">
-      <h2>LanceDB Workspace</h2>
-      <p>{profile.displayName}</p>
-    </section>
-  );
+  return <LanceDbWorkspace profile={profile} />;
 }
