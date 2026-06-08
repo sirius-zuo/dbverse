@@ -5,6 +5,7 @@ pub mod errors;
 pub mod profiles;
 pub mod query_safety;
 pub mod result_model;
+pub mod sqlite_schema;
 
 use connectors::sqlite::SqliteConnector;
 
