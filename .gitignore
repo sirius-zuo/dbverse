@@ -1,0 +1,28 @@
+# Rust
+/target/
+Cargo.lock
+
+# Worktrees
+.worktrees/
+.claire/
+
+# Claude Code and Superpowers local state
+.claude/
+.superpowers/
+.codegraph/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.tmp/
+
+# OS
+.DS_Store
+
+# Env
+.env
+docs/
+target/
+
