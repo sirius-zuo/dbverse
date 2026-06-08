@@ -157,3 +157,40 @@ textarea {
   margin-left: 8px;
   color: #64748b;
 }
+
+.workspace-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.workspace-header h2 {
+  margin: 0 0 4px;
+}
+
+.workspace-header p {
+  margin: 0;
+  color: #64748b;
+}
+
+.query-editor {
+  width: 100%;
+  min-height: 160px;
+  resize: vertical;
+  border: 1px solid #d9e0e8;
+  border-radius: 6px;
+  padding: 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  margin-bottom: 16px;
+}
+
+.error-banner {
+  border: 1px solid #fecaca;
+  background: #fef2f2;
+  color: #991b1b;
+  border-radius: 6px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+}
