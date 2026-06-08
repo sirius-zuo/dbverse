@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { appVersion } from "./api/tauri";
 import { listConnections, saveConnection, deleteConnection } from "./api/profiles";
-import type { ConnectionProfile, DatabaseKind, Tab } from "./api/types";
+import type { ConnectionProfile, DatabaseKind, TableSchema, Tab } from "./api/types";
 import { DbTypePicker } from "./components/DbTypePicker";
 import { Sidebar } from "./components/Sidebar";
 import { WorkspaceArea } from "./components/WorkspaceArea";
@@ -16,6 +16,7 @@ export function App() {
     tabId: string;
     profile: ConnectionProfile;
   } | null>(null);
+  const [selectedTable, setSelectedTable] = useState<string | null>(null);
 
   useEffect(() => {
     void appVersion().then(setVersion).catch(() => setVersion("unknown"));
@@ -143,6 +144,10 @@ export function App() {
     setPendingSave(null);
   }
 
+  function handleTableSelect(_profile: ConnectionProfile, tableId: string) {
+    setSelectedTable(tableId);
+  }
+
   if (activeDbKind === null) {
     return (
       <main className="app-shell app-shell-picker">
@@ -163,6 +168,8 @@ export function App() {
         onOpen={handleOpen}
         onEdit={handleEdit}
         onDelete={handleDelete}
+        onTableSelect={handleTableSelect}
+        selectedTable={selectedTable}
       />
       <WorkspaceArea
         tabs={tabs}

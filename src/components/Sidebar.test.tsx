@@ -14,6 +14,8 @@ const baseProps = {
   onOpen: vi.fn(),
   onEdit: vi.fn(),
   onDelete: vi.fn(),
+  onTableSelect: vi.fn(),
+  selectedTable: null,
 };
 
 describe("Sidebar", () => {
