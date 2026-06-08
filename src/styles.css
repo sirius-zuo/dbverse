@@ -39,3 +39,9 @@ textarea {
 .app-workspace {
   padding: 28px;
 }
+
+.app-version {
+  margin-top: 24px;
+  color: #64748b;
+  font-size: 13px;
+}
