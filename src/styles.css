@@ -843,3 +843,43 @@ textarea {
   font-size: 13px;
   border-bottom: 1px solid #fecaca;
 }
+
+/* NewConnectionForm: field with browse button */
+.field-label-with-button {
+  display: block;
+  margin-bottom: 16px;
+}
+
+.field-label-text {
+  display: block;
+  margin-bottom: 4px;
+  font-weight: 500;
+  font-size: 14px;
+  color: #334155;
+}
+
+.field-input-row {
+  display: flex;
+  gap: 8px;
+}
+
+.field-input-row input {
+  flex: 1;
+}
+
+.field-browse-btn {
+  white-space: nowrap;
+  padding: 8px 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: #fff;
+  color: #334155;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.field-browse-btn:hover {
+  background: #f0f4ff;
+  border-color: #c7d2fe;
+  color: #1d4ed8;
+}
