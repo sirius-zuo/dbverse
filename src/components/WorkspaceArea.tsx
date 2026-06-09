@@ -63,7 +63,14 @@ export function WorkspaceArea({
         />
       );
     }
-    return <WorkspaceRouter profile={activeTab.profile} selectedTable={selectedTable} onTablePreviewClose={onTablePreviewClose} />;
+    return (
+      <WorkspaceRouter
+        key={activeTab.id}
+        profile={activeTab.profile}
+        selectedTable={selectedTable}
+        onTablePreviewClose={onTablePreviewClose}
+      />
+    );
   }
 
   return (

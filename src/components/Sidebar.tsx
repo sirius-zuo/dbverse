@@ -7,6 +7,7 @@ interface Props {
   activeKind: DatabaseKind;
   profiles: ConnectionProfile[];
   openProfileIds: Set<string>;
+  activeProfile: ConnectionProfile | null;
   version: string;
   onKindSelect(kind: DatabaseKind): void;
   onNew(): void;
@@ -21,6 +22,7 @@ export function Sidebar({
   activeKind,
   profiles,
   openProfileIds,
+  activeProfile,
   version,
   onKindSelect,
   onNew,
@@ -30,7 +32,6 @@ export function Sidebar({
   onTableSelect,
   selectedTable,
 }: Props) {
-  const activeProfile = profiles.find((p) => openProfileIds.has(p.id)) ?? null;
 
   return (
     <aside className="app-sidebar">
@@ -50,6 +51,7 @@ export function Sidebar({
         <div className="sidebar-tree-container">
           <h3 className="sidebar-tree-title">{activeProfile.displayName}</h3>
           <SidebarTree
+            key={activeProfile.id}
             profile={activeProfile}
             selectedTable={selectedTable ? `table:${selectedTable.tableName}` : null}
             onTableSelect={(tableId, schema) => onTableSelect(activeProfile, tableId, schema)}

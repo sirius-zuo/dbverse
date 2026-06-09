@@ -33,6 +33,12 @@ export function App() {
     )
   );
 
+  const activeWorkspaceProfile = (
+    tabs.find((t) => t.id === activeTabId && t.type === "workspace") as
+      | Extract<Tab, { type: "workspace" }>
+      | undefined
+  )?.profile ?? null;
+
   function openTab(tab: Tab) {
     setTabs((prev) => (prev.some((t) => t.id === tab.id) ? prev : [...prev, tab]));
     setActiveTabId(tab.id);
@@ -163,6 +169,7 @@ export function App() {
         activeKind={activeDbKind}
         profiles={sidebarProfiles}
         openProfileIds={openProfileIds}
+        activeProfile={activeWorkspaceProfile}
         version={version}
         onKindSelect={setActiveDbKind}
         onNew={handleNew}
