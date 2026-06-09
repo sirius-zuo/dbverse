@@ -158,6 +158,38 @@ async fn search_lancedb(
 }
 
 #[tauri::command]
+async fn lancedb_list_datasets(path: String) -> Result<Vec<String>, AppRuntimeError> {
+    connectors::lancedb::list_lancedb_datasets(&path)
+        .await
+        .map_err(|error| {
+            AppRuntimeError::User(errors::AppError {
+                category: errors::AppErrorCategory::QueryError,
+                message: "LanceDB list datasets failed.".to_string(),
+                recovery_hint: Some("Check that the path points to a valid LanceDB database.".to_string()),
+                technical_details: Some(error.to_string()),
+                operation_id: None,
+            })
+        })
+}
+
+#[tauri::command]
+async fn lancedb_query_dataset(
+    request: connectors::lancedb::LanceDbQueryRequest,
+) -> Result<(connectors::lancedb::LanceDbDatasetInfo, result_model::ResultSet), AppRuntimeError> {
+    connectors::lancedb::query_lancedb_dataset(request)
+        .await
+        .map_err(|error| {
+            AppRuntimeError::User(errors::AppError {
+                category: errors::AppErrorCategory::QueryError,
+                message: "LanceDB query failed.".to_string(),
+                recovery_hint: Some("Check the database path and dataset name.".to_string()),
+                technical_details: Some(error.to_string()),
+                operation_id: None,
+            })
+        })
+}
+
+#[tauri::command]
 async fn embed_text_openai(
     api_key: String,
     model: String,
@@ -364,7 +396,9 @@ pub fn run() {
             sqlite_get_total_rows,
             postgres_execute_query,
             embed_text_openai,
-            search_lancedb
+            search_lancedb,
+            lancedb_list_datasets,
+            lancedb_query_dataset
         ])
         .run(tauri::generate_context!())
         .expect("failed to run dbverse");

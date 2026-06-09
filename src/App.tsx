@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { appVersion } from "./api/tauri";
 import { listConnections, saveConnection, deleteConnection } from "./api/profiles";
-import type { ConnectionProfile, DatabaseKind, TableSchema, Tab } from "./api/types";
+import type { ConnectionProfile, DatabaseKind, TableSchema, Tab, LanceDbDatasetSchema, DatasetSelection } from "./api/types";
 import { DbTypePicker } from "./components/DbTypePicker";
 import { Sidebar } from "./components/Sidebar";
 import { WorkspaceArea } from "./components/WorkspaceArea";
@@ -17,6 +17,7 @@ export function App() {
     profile: ConnectionProfile;
   } | null>(null);
   const [selectedTable, setSelectedTable] = useState<{ profileId: string; tableName: string } | null>(null);
+  const [selectedDataset, setSelectedDataset] = useState<{ profileId: string; datasetName: string } | null>(null);
 
   useEffect(() => {
     void appVersion().then(setVersion).catch(() => setVersion("unknown"));
@@ -153,6 +154,13 @@ export function App() {
   function handleTableSelect(profile: ConnectionProfile, tableId: string) {
     const tableName = tableId.startsWith("table:") ? tableId.slice(6) : tableId;
     setSelectedTable({ profileId: profile.id, tableName });
+    setSelectedDataset(null);
+  }
+
+  function handleDatasetSelect(_profile: ConnectionProfile, datasetId: string, _schema: LanceDbDatasetSchema) {
+    const datasetName = datasetId.startsWith("dataset:") ? datasetId.slice(8) : datasetId;
+    setSelectedDataset({ profileId: _profile.id, datasetName });
+    setSelectedTable(null);
   }
 
   if (activeDbKind === null) {
@@ -177,7 +185,9 @@ export function App() {
         onEdit={handleEdit}
         onDelete={handleDelete}
         onTableSelect={handleTableSelect}
+        onDatasetSelect={handleDatasetSelect}
         selectedTable={selectedTable}
+        selectedDataset={selectedDataset}
       />
       <WorkspaceArea
         tabs={tabs}
@@ -191,7 +201,11 @@ export function App() {
         onSave={handleSave}
         onSkipSave={handleSkipSave}
         selectedTable={selectedTable}
-        onTablePreviewClose={() => setSelectedTable(null)}
+        selectedDataset={selectedDataset}
+        onTablePreviewClose={() => {
+          setSelectedTable(null);
+          setSelectedDataset(null);
+        }}
       />
     </main>
   );

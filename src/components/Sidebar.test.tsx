@@ -16,7 +16,9 @@ const baseProps = {
   onEdit: vi.fn(),
   onDelete: vi.fn(),
   onTableSelect: vi.fn(),
+  onDatasetSelect: vi.fn(),
   selectedTable: null,
+  selectedDataset: null,
 };
 
 describe("Sidebar", () => {

@@ -3,6 +3,7 @@ import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { SidebarTree } from "../../components/SidebarTree";
 import type { ConnectionProfile, TableSchema } from "../../api/types";
 import * as browseApi from "../../api/browse";
+import * as lancedbApi from "../../api/lancedb";
 
 vi.mock("../../api/browse", () => ({
   sqliteListTables: vi.fn(),
@@ -10,6 +11,11 @@ vi.mock("../../api/browse", () => ({
   sqliteListIndexes: vi.fn(),
   sqliteGetTableSchema: vi.fn(),
   sqliteGetTablePage: vi.fn(),
+}));
+
+vi.mock("../../api/lancedb", () => ({
+  listLanceDbDatasets: vi.fn(),
+  queryLanceDbDataset: vi.fn(),
 }));
 
 const mockProfile: ConnectionProfile = {
@@ -33,12 +39,14 @@ describe("SQLiteWorkspace with browsing integration", () => {
     vi.mocked(browseApi.sqliteListTables).mockResolvedValue(["users", "posts"]);
     vi.mocked(browseApi.sqliteListViews).mockResolvedValue([]);
     vi.mocked(browseApi.sqliteListIndexes).mockResolvedValue([]);
+    vi.mocked(lancedbApi.listLanceDbDatasets).mockResolvedValue([]);
 
     render(
       <SidebarTree
         profile={mockProfile}
         selectedTable={null}
         onTableSelect={() => {}}
+        onDatasetSelect={() => {}}
       />
     );
 
@@ -52,12 +60,14 @@ describe("SQLiteWorkspace with browsing integration", () => {
     vi.mocked(browseApi.sqliteListViews).mockResolvedValue([]);
     vi.mocked(browseApi.sqliteListIndexes).mockResolvedValue([]);
     vi.mocked(browseApi.sqliteGetTableSchema).mockResolvedValue(mockSchema);
+    vi.mocked(lancedbApi.listLanceDbDatasets).mockResolvedValue([]);
 
     render(
       <SidebarTree
         profile={mockProfile}
         selectedTable={null}
         onTableSelect={onTableSelect}
+        onDatasetSelect={() => {}}
       />
     );
 

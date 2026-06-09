@@ -1,4 +1,4 @@
-import type { ConnectionProfile, DatabaseKind, TableSchema, TableSelection } from "../api/types";
+import type { ConnectionProfile, DatabaseKind, TableSchema, TableSelection, LanceDbDatasetSchema, DatasetSelection } from "../api/types";
 import { TypeDropdown } from "./TypeDropdown";
 import { ConnectionList } from "./ConnectionList";
 import { SidebarTree } from "./SidebarTree";
@@ -16,7 +16,9 @@ interface Props {
   onEdit(profile: ConnectionProfile): void;
   onDelete(profile: ConnectionProfile): void;
   onTableSelect(profile: ConnectionProfile, tableId: string, schema: TableSchema): void;
+  onDatasetSelect(profile: ConnectionProfile, datasetId: string, schema: LanceDbDatasetSchema): void;
   selectedTable: TableSelection | null;
+  selectedDataset: DatasetSelection | null;
 }
 
 export function Sidebar({
@@ -31,7 +33,9 @@ export function Sidebar({
   onEdit,
   onDelete,
   onTableSelect,
+  onDatasetSelect,
   selectedTable,
+  selectedDataset,
 }: Props) {
 
   return (
@@ -57,8 +61,9 @@ export function Sidebar({
           <SidebarTree
             key={activeProfile.id}
             profile={activeProfile}
-            selectedTable={selectedTable ? `table:${selectedTable.tableName}` : null}
+            selectedTable={selectedTable ? `table:${selectedTable.tableName}` : selectedDataset ? `dataset:${selectedDataset.datasetName}` : null}
             onTableSelect={(tableId, schema) => onTableSelect(activeProfile, tableId, schema)}
+            onDatasetSelect={(datasetId, schema) => onDatasetSelect(activeProfile, datasetId, schema)}
           />
         </div>
       )}

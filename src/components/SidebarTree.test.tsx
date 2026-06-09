@@ -3,12 +3,18 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { SidebarTree } from "./SidebarTree";
 import type { ConnectionProfile, TableSchema } from "../api/types";
 import * as browseApi from "../api/browse";
+import * as lancedbApi from "../api/lancedb";
 
 vi.mock("../api/browse", () => ({
   sqliteListTables: vi.fn(),
   sqliteListViews: vi.fn(),
   sqliteListIndexes: vi.fn(),
   sqliteGetTableSchema: vi.fn(),
+}));
+
+vi.mock("../api/lancedb", () => ({
+  listLanceDbDatasets: vi.fn(),
+  queryLanceDbDataset: vi.fn(),
 }));
 
 const mockProfile: ConnectionProfile = {
@@ -32,16 +38,17 @@ const mockSchema: TableSchema = {
 
 describe("SidebarTree", () => {
   it("renders loading state initially", () => {
-    render(<SidebarTree profile={mockProfile} selectedTable={null} onTableSelect={() => {}} />);
-    expect(screen.getByText(/Loading tables/i)).toBeTruthy();
+    render(<SidebarTree profile={mockProfile} selectedTable={null} onTableSelect={() => {}} onDatasetSelect={() => {}} />);
+    expect(screen.getByText(/Loading/i)).toBeTruthy();
   });
 
   it("renders tables after loading", async () => {
     vi.mocked(browseApi.sqliteListTables).mockResolvedValue(["users", "posts"]);
     vi.mocked(browseApi.sqliteListViews).mockResolvedValue([]);
     vi.mocked(browseApi.sqliteListIndexes).mockResolvedValue([]);
+    vi.mocked(lancedbApi.listLanceDbDatasets).mockResolvedValue([]);
 
-    render(<SidebarTree profile={mockProfile} selectedTable={null} onTableSelect={() => {}} />);
+    render(<SidebarTree profile={mockProfile} selectedTable={null} onTableSelect={() => {}} onDatasetSelect={() => {}} />);
 
     await waitFor(() => screen.getByText(/Tables \(2\)/i), { timeout: 3000 });
     expect(screen.getByText("users")).toBeTruthy();
@@ -54,12 +61,14 @@ describe("SidebarTree", () => {
     vi.mocked(browseApi.sqliteListViews).mockResolvedValue([]);
     vi.mocked(browseApi.sqliteListIndexes).mockResolvedValue([]);
     vi.mocked(browseApi.sqliteGetTableSchema).mockResolvedValue(mockSchema);
+    vi.mocked(lancedbApi.listLanceDbDatasets).mockResolvedValue([]);
 
     render(
       <SidebarTree
         profile={mockProfile}
         selectedTable={null}
         onTableSelect={onTableSelect}
+        onDatasetSelect={() => {}}
       />
     );
 
@@ -76,7 +85,7 @@ describe("SidebarTree", () => {
       ...mockProfile,
       config: { kind: "sqlite", path: "" },
     };
-    render(<SidebarTree profile={emptyProfile} selectedTable={null} onTableSelect={() => {}} />);
+    render(<SidebarTree profile={emptyProfile} selectedTable={null} onTableSelect={() => {}} onDatasetSelect={() => {}} />);
     await waitFor(() => screen.getByText(/No SQLite path/i), { timeout: 3000 });
   });
 
@@ -87,8 +96,9 @@ describe("SidebarTree", () => {
       ["users", "idx_users_name"],
       ["users", "idx_users_email"],
     ]);
+    vi.mocked(lancedbApi.listLanceDbDatasets).mockResolvedValue([]);
 
-    render(<SidebarTree profile={mockProfile} selectedTable={null} onTableSelect={() => {}} />);
+    render(<SidebarTree profile={mockProfile} selectedTable={null} onTableSelect={() => {}} onDatasetSelect={() => {}} />);
 
     await waitFor(() => screen.getByText(/Indexes \(2\)/i), { timeout: 3000 });
   });
@@ -97,12 +107,14 @@ describe("SidebarTree", () => {
     vi.mocked(browseApi.sqliteListTables).mockResolvedValue(["users", "posts"]);
     vi.mocked(browseApi.sqliteListViews).mockResolvedValue([]);
     vi.mocked(browseApi.sqliteListIndexes).mockResolvedValue([]);
+    vi.mocked(lancedbApi.listLanceDbDatasets).mockResolvedValue([]);
 
     render(
       <SidebarTree
         profile={mockProfile}
         selectedTable="table:users"
         onTableSelect={() => {}}
+        onDatasetSelect={() => {}}
       />
     );
 
@@ -115,8 +127,9 @@ describe("SidebarTree", () => {
     vi.mocked(browseApi.sqliteListTables).mockResolvedValue(["users"]);
     vi.mocked(browseApi.sqliteListViews).mockResolvedValue([]);
     vi.mocked(browseApi.sqliteListIndexes).mockResolvedValue([]);
+    vi.mocked(lancedbApi.listLanceDbDatasets).mockResolvedValue([]);
 
-    render(<SidebarTree profile={mockProfile} selectedTable={null} onTableSelect={() => {}} />);
+    render(<SidebarTree profile={mockProfile} selectedTable={null} onTableSelect={() => {}} onDatasetSelect={() => {}} />);
 
     await waitFor(() => screen.getByText(/Tables \(1\)/i), { timeout: 3000 });
     const header = screen.getByText(/Tables \(1\)/i).closest(".tree-group-header") as HTMLElement;
@@ -134,8 +147,9 @@ describe("SidebarTree", () => {
     vi.mocked(browseApi.sqliteListTables).mockResolvedValue([]);
     vi.mocked(browseApi.sqliteListViews).mockResolvedValue(["active_users"]);
     vi.mocked(browseApi.sqliteListIndexes).mockResolvedValue([]);
+    vi.mocked(lancedbApi.listLanceDbDatasets).mockResolvedValue([]);
 
-    render(<SidebarTree profile={mockProfile} selectedTable={null} onTableSelect={() => {}} />);
+    render(<SidebarTree profile={mockProfile} selectedTable={null} onTableSelect={() => {}} onDatasetSelect={() => {}} />);
 
     await waitFor(() => screen.getByText(/Views \(1\)/i), { timeout: 3000 });
   });
@@ -144,8 +158,9 @@ describe("SidebarTree", () => {
     vi.mocked(browseApi.sqliteListTables).mockResolvedValue([]);
     vi.mocked(browseApi.sqliteListViews).mockResolvedValue([]);
     vi.mocked(browseApi.sqliteListIndexes).mockResolvedValue([]);
+    vi.mocked(lancedbApi.listLanceDbDatasets).mockResolvedValue([]);
 
-    render(<SidebarTree profile={mockProfile} selectedTable={null} onTableSelect={() => {}} />);
+    render(<SidebarTree profile={mockProfile} selectedTable={null} onTableSelect={() => {}} onDatasetSelect={() => {}} />);
 
     await waitFor(() => screen.getByText(/No tables found/i), { timeout: 3000 });
   });

@@ -153,3 +153,16 @@ export interface TableSelection {
   profileId: string;
   tableName: string;
 }
+
+/** Represents a selected dataset for the preview panel (LanceDB) */
+export interface DatasetSelection {
+  profileId: string;
+  datasetName: string;
+}
+
+export interface LanceDbDatasetSchema {
+  name: string;
+  columnNames: string[];
+  columnTypes: string[];
+  rowCount: number;
+}

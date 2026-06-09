@@ -27,17 +27,17 @@ function profile(kind: ConnectionProfile["kind"]): ConnectionProfile {
 
 describe("WorkspaceRouter", () => {
   it("renders SQLite workspace", () => {
-    render(<WorkspaceRouter profile={profile("sqlite")} selectedTable={null} onTablePreviewClose={() => {}} />);
+    render(<WorkspaceRouter profile={profile("sqlite")} selectedTable={null} selectedDataset={null} onTablePreviewClose={() => {}} />);
     expect(screen.getByText("SQLite Workspace")).toBeInTheDocument();
   });
 
   it("renders PostgreSQL workspace", () => {
-    render(<WorkspaceRouter profile={profile("postgresql")} selectedTable={null} onTablePreviewClose={() => {}} />);
+    render(<WorkspaceRouter profile={profile("postgresql")} selectedTable={null} selectedDataset={null} onTablePreviewClose={() => {}} />);
     expect(screen.getByText("PostgreSQL Workspace")).toBeInTheDocument();
   });
 
   it("renders LanceDB workspace", () => {
-    render(<WorkspaceRouter profile={profile("lancedb")} selectedTable={null} onTablePreviewClose={() => {}} />);
+    render(<WorkspaceRouter profile={profile("lancedb")} selectedTable={null} selectedDataset={null} onTablePreviewClose={() => {}} />);
     expect(screen.getByText("LanceDB Workspace")).toBeInTheDocument();
   });
 });

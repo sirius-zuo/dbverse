@@ -1,4 +1,4 @@
-import type { ConnectionProfile, Tab, TableSelection } from "../api/types";
+import type { ConnectionProfile, Tab, TableSelection, DatasetSelection } from "../api/types";
 import { TabBar } from "./TabBar";
 import { WorkspaceRouter } from "./WorkspaceRouter";
 import { NewConnectionForm } from "./NewConnectionForm";
@@ -16,6 +16,7 @@ interface Props {
   onSave(tabId: string, name: string): void;
   onSkipSave(tabId: string): void;
   selectedTable: TableSelection | null;
+  selectedDataset: DatasetSelection | null;
   onTablePreviewClose(): void;
 }
 
@@ -31,6 +32,7 @@ export function WorkspaceArea({
   onSave,
   onSkipSave,
   selectedTable,
+  selectedDataset,
   onTablePreviewClose,
 }: Props) {
   const activeTab = tabs.find((t) => t.id === activeTabId) ?? null;
@@ -68,6 +70,7 @@ export function WorkspaceArea({
         key={activeTab.id}
         profile={activeTab.profile}
         selectedTable={selectedTable}
+        selectedDataset={selectedDataset}
         onTablePreviewClose={onTablePreviewClose}
       />
     );
