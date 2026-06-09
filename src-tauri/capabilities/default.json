@@ -1,0 +1,8 @@
+{
+  "identifier": "default",
+  "description": "Default Tauri capabilities",
+  "windows": ["main"],
+  "permissions": [
+    "core:default"
+  ]
+}

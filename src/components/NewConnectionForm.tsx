@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { open } from "@tauri-apps/plugin-dialog";
+import { invoke } from "@tauri-apps/api/core";
 import type { ConnectionProfile, DatabaseKind, PostgresSslMode } from "../api/types";
 
 interface Props {
@@ -69,16 +69,7 @@ export function NewConnectionForm({ kind, initialProfile, onConnect, onCancel }:
 
   async function handleBrowseFile() {
     try {
-      const selected = await open({
-        title: "Select SQLite Database",
-        filters: [
-          {
-            name: "SQLite Database",
-            extensions: ["db", "sqlite", "sqlite3"],
-          },
-          { name: "Any File", extensions: ["*"] },
-        ],
-      });
+      const selected = await invoke<string | null>("select_file");
       if (selected !== null) {
         setPath(selected);
       }

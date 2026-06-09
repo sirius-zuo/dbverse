@@ -21,6 +21,22 @@ use sqlite_schema::{FilterOp, ColumnFilter};
 use sqlite_schema::{sqlite_get_table_page_sorted as sqlite_schema_get_table_page_sorted, sqlite_get_total_rows as sqlite_schema_get_total_rows};
 
 #[tauri::command]
+fn select_file() -> Result<Option<String>, AppRuntimeError> {
+    use rfd::FileDialog;
+    
+    let result = FileDialog::new()
+        .set_title("Select SQLite Database")
+        .add_filter("SQLite Database", &["db", "sqlite", "sqlite3"])
+        .add_filter("Any File", &["*"])
+        .pick_file();
+    
+    match result {
+        Some(path) => Ok(Some(path.to_string_lossy().to_string())),
+        None => Ok(None),
+    }
+}
+
+#[tauri::command]
 fn classify_statement(sql: String) -> StatementClassification {
     classify_sql(&sql)
 }
@@ -330,7 +346,6 @@ fn sqlite_get_total_rows(path: String, table: String) -> Result<i64, AppRuntimeE
 
 pub fn run() {
     tauri::Builder::default()
-        .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             app_version,
             classify_statement,
@@ -338,6 +353,7 @@ pub fn run() {
             list_connections,
             save_connection,
             delete_connection,
+            select_file,
             sqlite_execute_file_query,
             sqlite_list_tables,
             sqlite_list_views,
