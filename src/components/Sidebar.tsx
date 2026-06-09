@@ -2,6 +2,7 @@ import type { ConnectionProfile, DatabaseKind, TableSchema, TableSelection } fro
 import { TypeDropdown } from "./TypeDropdown";
 import { ConnectionList } from "./ConnectionList";
 import { SidebarTree } from "./SidebarTree";
+import { ThemeToggle } from "./ThemeToggle";
 
 interface Props {
   activeKind: DatabaseKind;
@@ -35,7 +36,10 @@ export function Sidebar({
 
   return (
     <aside className="app-sidebar">
-      <h1>dbverse</h1>
+      <div className="sidebar-header">
+        <h1>dbverse</h1>
+        <ThemeToggle />
+      </div>
       <div className="sidebar-header">
         <TypeDropdown activeKind={activeKind} onSelect={onKindSelect} />
         <button className="sidebar-new-btn" onClick={onNew}>+ New</button>
