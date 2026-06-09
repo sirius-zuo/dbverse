@@ -33,9 +33,8 @@ export function ResultGrid({ result }: ResultGridProps) {
     x: number;
     y: number;
     value: ResultValue | null;
-    highlightRow: number;
-    highlightCol: number;
   } | null>(null);
+  const [highlighted, setHighlighted] = useState<{ row: number; col: number } | null>(null);
   const gridRef = useRef<HTMLDivElement>(null);
 
   // Close context menu on click outside
@@ -49,6 +48,11 @@ export function ResultGrid({ result }: ResultGridProps) {
     }
   }, [contextMenu]);
 
+  // Highlight on left click
+  function handleCellClick(_e: React.MouseEvent, rowIndex: number, columnIndex: number) {
+    setHighlighted({ row: rowIndex, col: columnIndex });
+  }
+
   function handleCellContextMenu(
     e: React.MouseEvent,
     rowIndex: number,
@@ -56,7 +60,8 @@ export function ResultGrid({ result }: ResultGridProps) {
     value: ResultValue
   ) {
     e.preventDefault();
-    setContextMenu({ x: e.clientX, y: e.clientY, value, highlightRow: rowIndex, highlightCol: columnIndex });
+    setHighlighted({ row: rowIndex, col: columnIndex });
+    setContextMenu({ x: e.clientX, y: e.clientY, value });
   }
 
   function handleCopy() {
@@ -71,7 +76,12 @@ export function ResultGrid({ result }: ResultGridProps) {
   }
 
   return (
-    <div className="result-grid" role="table" ref={gridRef}>
+    <div
+      className="result-grid"
+      role="table"
+      ref={gridRef}
+      onClick={() => setHighlighted(null)}
+    >
       <div className="result-row result-header" role="row">
         {result.columns.map((column) => (
           <div key={column.name} className="result-cell" role="columnheader">
@@ -86,13 +96,14 @@ export function ResultGrid({ result }: ResultGridProps) {
             <div
               key={columnIndex}
               className={`result-cell ${
-                contextMenu &&
-                contextMenu.highlightRow === rowIndex &&
-                contextMenu.highlightCol === columnIndex
+                highlighted &&
+                highlighted.row === rowIndex &&
+                highlighted.col === columnIndex
                   ? "result-cell-highlight"
                   : ""
               }`}
               role="cell"
+              onClick={(e) => handleCellClick(e, rowIndex, columnIndex)}
               onContextMenu={(e) => handleCellContextMenu(e, rowIndex, columnIndex, value)}
             >
               {renderValue(value)}
