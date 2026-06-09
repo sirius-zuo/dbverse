@@ -1,4 +1,4 @@
-import type { ConnectionProfile, DatabaseKind, TableSchema } from "../api/types";
+import type { ConnectionProfile, DatabaseKind, TableSchema, TableSelection } from "../api/types";
 import { TypeDropdown } from "./TypeDropdown";
 import { ConnectionList } from "./ConnectionList";
 import { SidebarTree } from "./SidebarTree";
@@ -14,7 +14,7 @@ interface Props {
   onEdit(profile: ConnectionProfile): void;
   onDelete(profile: ConnectionProfile): void;
   onTableSelect(profile: ConnectionProfile, tableId: string, schema: TableSchema): void;
-  selectedTable: string | null;
+  selectedTable: TableSelection | null;
 }
 
 export function Sidebar({
@@ -51,7 +51,7 @@ export function Sidebar({
           <h3 className="sidebar-tree-title">{activeProfile.displayName}</h3>
           <SidebarTree
             profile={activeProfile}
-            selectedTable={selectedTable}
+            selectedTable={selectedTable ? `table:${selectedTable.tableName}` : null}
             onTableSelect={(tableId, schema) => onTableSelect(activeProfile, tableId, schema)}
           />
         </div>

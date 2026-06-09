@@ -1,4 +1,4 @@
-import type { ConnectionProfile, Tab } from "../api/types";
+import type { ConnectionProfile, Tab, TableSelection } from "../api/types";
 import { TabBar } from "./TabBar";
 import { WorkspaceRouter } from "./WorkspaceRouter";
 import { NewConnectionForm } from "./NewConnectionForm";
@@ -15,7 +15,7 @@ interface Props {
   onConnectEdit(tabId: string, profile: ConnectionProfile): void;
   onSave(tabId: string, name: string): void;
   onSkipSave(tabId: string): void;
-  selectedTable: string | null;
+  selectedTable: TableSelection | null;
   onTablePreviewClose(): void;
 }
 

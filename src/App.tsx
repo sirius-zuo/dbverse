@@ -16,7 +16,7 @@ export function App() {
     tabId: string;
     profile: ConnectionProfile;
   } | null>(null);
-  const [selectedTable, setSelectedTable] = useState<string | null>(null);
+  const [selectedTable, setSelectedTable] = useState<{ profileId: string; tableName: string } | null>(null);
 
   useEffect(() => {
     void appVersion().then(setVersion).catch(() => setVersion("unknown"));
@@ -144,8 +144,9 @@ export function App() {
     setPendingSave(null);
   }
 
-  function handleTableSelect(_profile: ConnectionProfile, tableId: string) {
-    setSelectedTable(tableId);
+  function handleTableSelect(profile: ConnectionProfile, tableId: string) {
+    const tableName = tableId.startsWith("table:") ? tableId.slice(6) : tableId;
+    setSelectedTable({ profileId: profile.id, tableName });
   }
 
   if (activeDbKind === null) {

@@ -8,7 +8,7 @@ import { sqliteGetTableSchema } from "../../api/browse";
 
 interface SQLiteWorkspaceProps {
   profile: ConnectionProfile;
-  selectedTable: string | null;
+  selectedTable: { tableName: string } | null;
   onTablePreviewClose(): void;
 }
 
@@ -21,16 +21,25 @@ export function SQLiteWorkspace({ profile, selectedTable, onTablePreviewClose }:
   const [result, setResult] = useState<ResultSet | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [tableSchema, setTableSchema] = useState<TableSchema | null>(null);
+  const [tableError, setTableError] = useState<string | null>(null);
 
   // Load table schema when selectedTable changes
   useEffect(() => {
     if (!path || !selectedTable) {
       setTableSchema(null);
+      setTableError(null);
       return;
     }
-    sqliteGetTableSchema(path, selectedTable)
-      .then(setTableSchema)
-      .catch(() => setTableSchema(null));
+    const tableName = selectedTable.tableName;
+    sqliteGetTableSchema(path, tableName)
+      .then((schema) => {
+        setTableSchema(schema);
+        setTableError(null);
+      })
+      .catch((e) => {
+        setTableError(e instanceof Error ? e.message : "Failed to load table schema");
+        setTableSchema(null);
+      });
   }, [path, selectedTable]);
 
   async function runQuery() {
@@ -75,6 +84,9 @@ export function SQLiteWorkspace({ profile, selectedTable, onTablePreviewClose }:
         <div className="error-banner">{message}</div>
       ) : null}
       <ResultGrid result={result} />
+      {selectedTable && tableError && (
+        <div className="table-preview-error">{tableError}</div>
+      )}
       {selectedTable && tableSchema && (
         <TablePreview
           profile={profile}

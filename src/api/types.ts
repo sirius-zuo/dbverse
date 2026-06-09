@@ -147,3 +147,9 @@ export interface SortConfig {
   column: string;
   direction: SortDirection;
 }
+
+/** Represents a selected table for the preview panel */
+export interface TableSelection {
+  profileId: string;
+  tableName: string;
+}
