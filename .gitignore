@@ -25,4 +25,4 @@ Cargo.lock
 .env
 docs/
 target/
-
+node_modules/
