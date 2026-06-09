@@ -49,7 +49,8 @@ export function ResultGrid({ result }: ResultGridProps) {
   }, [contextMenu]);
 
   // Highlight on left click
-  function handleCellClick(_e: React.MouseEvent, rowIndex: number, columnIndex: number) {
+  function handleCellClick(e: React.MouseEvent, rowIndex: number, columnIndex: number) {
+    e.stopPropagation();
     setHighlighted({ row: rowIndex, col: columnIndex });
   }
 
@@ -64,7 +65,8 @@ export function ResultGrid({ result }: ResultGridProps) {
     setContextMenu({ x: e.clientX, y: e.clientY, value });
   }
 
-  function handleCopy() {
+  function handleCopy(e: React.MouseEvent) {
+    e.stopPropagation();
     if (contextMenu?.value) {
       copyValue(contextMenu.value);
     }
@@ -104,7 +106,10 @@ export function ResultGrid({ result }: ResultGridProps) {
               }`}
               role="cell"
               onClick={(e) => handleCellClick(e, rowIndex, columnIndex)}
-              onContextMenu={(e) => handleCellContextMenu(e, rowIndex, columnIndex, value)}
+              onContextMenu={(e) => {
+                e.stopPropagation();
+                handleCellContextMenu(e, rowIndex, columnIndex, value);
+              }}
             >
               {renderValue(value)}
             </div>
