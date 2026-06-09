@@ -1,13 +1,26 @@
 import "@testing-library/jest-dom";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi, beforeEach } from "vitest";
 import { NewConnectionForm } from "./NewConnectionForm";
 import type { ConnectionProfile } from "../api/types";
 
 vi.mock("@tauri-apps/plugin-dialog", () => ({
   open: vi.fn(),
 }));
+
+vi.mock("@tauri-apps/api/core", () => ({
+  invoke: vi.fn(),
+}));
+
+// After vi.mock is set up, import to get the mocked invoke
+import * as tauriCore from "@tauri-apps/api/core";
+
+const invokeMock = tauriCore.invoke as ReturnType<typeof vi.fn>;
+
+beforeEach(() => {
+  invokeMock.mockReset();
+});
 
 describe("NewConnectionForm — sqlite", () => {
   it("renders a Path field and Connect button", () => {
@@ -111,5 +124,33 @@ describe("NewConnectionForm — browse button", () => {
   it("shows a Browse button for LanceDB", () => {
     render(<NewConnectionForm kind="lancedb" onConnect={vi.fn()} onCancel={vi.fn()} />);
     expect(screen.getByRole("button", { name: /browse/i })).toBeInTheDocument();
+  });
+
+  it("fills path from invoke for SQLite (select_file)", async () => {
+    invokeMock.mockResolvedValue("/tmp/test.db");
+    render(<NewConnectionForm kind="sqlite" onConnect={vi.fn()} onCancel={vi.fn()} />);
+    await userEvent.click(screen.getByRole("button", { name: /browse/i }));
+    await waitFor(() => expect(screen.getByLabelText("Path")).toHaveValue("/tmp/test.db"));
+  });
+
+  it("fills path from invoke for LanceDB (select_directory)", async () => {
+    invokeMock.mockResolvedValue("/tmp/lancedb-data");
+    render(<NewConnectionForm kind="lancedb" onConnect={vi.fn()} onCancel={vi.fn()} />);
+    await userEvent.click(screen.getByRole("button", { name: /browse/i }));
+    await waitFor(() => expect(screen.getByLabelText("Path")).toHaveValue("/tmp/lancedb-data"));
+  });
+
+  it("calls select_file for SQLite", async () => {
+    invokeMock.mockResolvedValue("/tmp/test.db");
+    render(<NewConnectionForm kind="sqlite" onConnect={vi.fn()} onCancel={vi.fn()} />);
+    await userEvent.click(screen.getByRole("button", { name: /browse/i }));
+    expect(invokeMock).toHaveBeenCalledWith("select_file");
+  });
+
+  it("calls select_directory for LanceDB", async () => {
+    invokeMock.mockResolvedValue("/tmp/lancedb-data");
+    render(<NewConnectionForm kind="lancedb" onConnect={vi.fn()} onCancel={vi.fn()} />);
+    await userEvent.click(screen.getByRole("button", { name: /browse/i }));
+    expect(invokeMock).toHaveBeenCalledWith("select_directory");
   });
 });

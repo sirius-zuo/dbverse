@@ -69,7 +69,7 @@ export function NewConnectionForm({ kind, initialProfile, onConnect, onCancel }:
 
   async function handleBrowseFile() {
     try {
-      const selected = await invoke<string | null>("select_file");
+      const selected = await invoke<string | null>(kind === "lancedb" ? "select_directory" : "select_file");
       if (selected !== null) {
         setPath(selected);
       }
@@ -101,7 +101,7 @@ export function NewConnectionForm({ kind, initialProfile, onConnect, onCancel }:
               aria-label="Path"
               value={path}
               onChange={(e) => setPath(e.target.value)}
-              placeholder="/path/to/database.db"
+              placeholder={kind === "lancedb" ? "/path/to/lancedb/database" : "/path/to/database.db"}
             />
             <button type="button" className="field-browse-btn" onClick={handleBrowseFile}>
               Browse…

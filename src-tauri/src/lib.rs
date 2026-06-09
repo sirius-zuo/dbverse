@@ -37,6 +37,20 @@ fn select_file() -> Result<Option<String>, AppRuntimeError> {
 }
 
 #[tauri::command]
+fn select_directory() -> Result<Option<String>, AppRuntimeError> {
+    use rfd::FileDialog;
+    
+    let result = FileDialog::new()
+        .set_title("Select LanceDB Database Directory")
+        .pick_folder();
+    
+    match result {
+        Some(path) => Ok(Some(path.to_string_lossy().to_string())),
+        None => Ok(None),
+    }
+}
+
+#[tauri::command]
 fn classify_statement(sql: String) -> StatementClassification {
     classify_sql(&sql)
 }
@@ -386,6 +400,7 @@ pub fn run() {
             save_connection,
             delete_connection,
             select_file,
+            select_directory,
             sqlite_execute_file_query,
             sqlite_list_tables,
             sqlite_list_views,
