@@ -330,6 +330,7 @@ fn sqlite_get_total_rows(path: String, table: String) -> Result<i64, AppRuntimeE
 
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             app_version,
             classify_statement,

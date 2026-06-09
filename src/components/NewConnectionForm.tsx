@@ -68,18 +68,22 @@ export function NewConnectionForm({ kind, initialProfile, onConnect, onCancel }:
   }
 
   async function handleBrowseFile() {
-    const selected = await open({
-      title: "Select SQLite Database",
-      filters: [
-        {
-          name: "SQLite Database",
-          extensions: ["db", "sqlite", "sqlite3"],
-        },
-        { name: "Any File", extensions: ["*"] },
-      ],
-    });
-    if (selected !== null) {
-      setPath(selected);
+    try {
+      const selected = await open({
+        title: "Select SQLite Database",
+        filters: [
+          {
+            name: "SQLite Database",
+            extensions: ["db", "sqlite", "sqlite3"],
+          },
+          { name: "Any File", extensions: ["*"] },
+        ],
+      });
+      if (selected !== null) {
+        setPath(selected);
+      }
+    } catch (err) {
+      setError(`Failed to open file dialog: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
 
