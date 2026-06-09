@@ -1,14 +1,18 @@
-import { useState } from "react";
-import type { ConnectionProfile, ResultSet } from "../../api/types";
+import { useState, useEffect } from "react";
+import type { ConnectionProfile, ResultSet, TableSchema } from "../../api/types";
 import { classifyStatement } from "../../api/tauri";
 import { sqliteExecuteFileQuery } from "../../api/sqlite";
 import { ResultGrid } from "../../components/ResultGrid";
+import { TablePreview } from "../../components/TablePreview";
+import { sqliteGetTableSchema } from "../../api/browse";
 
 interface SQLiteWorkspaceProps {
   profile: ConnectionProfile;
+  selectedTable: { tableName: string } | null;
+  onTablePreviewClose(): void;
 }
 
-export function SQLiteWorkspace({ profile }: SQLiteWorkspaceProps) {
+export function SQLiteWorkspace({ profile, selectedTable, onTablePreviewClose }: SQLiteWorkspaceProps) {
   const path =
     profile.config.kind === "sqlite" ? profile.config.path : "";
   const [sql, setSql] = useState(
@@ -16,6 +20,27 @@ export function SQLiteWorkspace({ profile }: SQLiteWorkspaceProps) {
   );
   const [result, setResult] = useState<ResultSet | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [tableSchema, setTableSchema] = useState<TableSchema | null>(null);
+  const [tableError, setTableError] = useState<string | null>(null);
+
+  // Load table schema when selectedTable changes
+  useEffect(() => {
+    if (!path || !selectedTable) {
+      setTableSchema(null);
+      setTableError(null);
+      return;
+    }
+    const tableName = selectedTable.tableName;
+    sqliteGetTableSchema(path, tableName)
+      .then((schema) => {
+        setTableSchema(schema);
+        setTableError(null);
+      })
+      .catch((e) => {
+        setTableError(e instanceof Error ? e.message : "Failed to load table schema");
+        setTableSchema(null);
+      });
+  }, [path, selectedTable]);
 
   async function runQuery() {
     setMessage(null);
@@ -59,6 +84,16 @@ export function SQLiteWorkspace({ profile }: SQLiteWorkspaceProps) {
         <div className="error-banner">{message}</div>
       ) : null}
       <ResultGrid result={result} />
+      {selectedTable && tableError && (
+        <div className="table-preview-error">{tableError}</div>
+      )}
+      {selectedTable && tableSchema && (
+        <TablePreview
+          profile={profile}
+          tableSchema={tableSchema}
+          onClose={onTablePreviewClose}
+        />
+      )}
     </section>
   );
 }

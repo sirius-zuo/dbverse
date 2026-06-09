@@ -7,12 +7,116 @@ use crate::result_model::{ResultColumn, ResultMetadata, ResultSet, Value, ValueT
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct LanceDbDatasetInfo {
+    pub name: String,
+    pub column_names: Vec<String>,
+    pub column_types: Vec<String>,
+    pub row_count: usize,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LanceDbQueryRequest {
+    pub path: String,
+    pub table: String,
+    pub offset: usize,
+    pub limit: usize,
+    pub sort_column: Option<String>,
+    pub sort_direction: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct LanceSearchRequest {
     pub path: String,
     pub table: String,
     pub vector_field: String,
     pub vector: Vec<f32>,
     pub top_k: usize,
+}
+
+/// List all dataset names in a LanceDB database.
+pub async fn list_lancedb_datasets(path: &str) -> Result<Vec<String>, lancedb::Error> {
+    let db = lancedb::connect(path).execute().await?;
+    let mut names = db.table_names().execute().await?;
+    names.sort();
+    Ok(names)
+}
+
+/// Query a LanceDB dataset with pagination.
+pub async fn query_lancedb_dataset(
+    request: LanceDbQueryRequest,
+) -> Result<(LanceDbDatasetInfo, ResultSet), lancedb::Error> {
+    let db = lancedb::connect(&request.path).execute().await?;
+    let table = db.open_table(&request.table).execute().await?;
+
+    // Get schema info
+    let schema = table.schema().await?;
+    let column_names: Vec<String> = schema.fields().iter().map(|f| f.name().to_string()).collect();
+    let column_types: Vec<String> = schema
+        .fields()
+        .iter()
+        .map(|f| f.data_type().to_string())
+        .collect();
+
+    // Fetch all data (lancedb 0.30 doesn't support server-side offset efficiently)
+    let query = table.query();
+    let batches: Vec<RecordBatch> = query
+        .limit(request.limit)
+        .execute()
+        .await?
+        .try_collect()
+        .await?;
+
+    let total_rows: usize = batches.iter().map(|b| b.num_rows()).sum();
+
+    // Apply client-side offset by slicing
+    let offset_batches = slice_batches(batches, request.offset, request.limit);
+    let displayed_rows = offset_batches.iter().map(|b| b.num_rows()).sum::<usize>();
+
+    let result_set = record_batches_to_result_set(
+        offset_batches,
+        Some(format!(
+            "Queried dataset `{}`. Showing rows {}-{} of {}.",
+            request.table,
+            request.offset.saturating_add(1),
+            (request.offset + displayed_rows).min(total_rows),
+            total_rows
+        )),
+    );
+
+    let dataset_info = LanceDbDatasetInfo {
+        name: request.table.clone(),
+        column_names,
+        column_types,
+        row_count: total_rows,
+    };
+
+    Ok((dataset_info, result_set))
+}
+
+/// Slice record batches starting from `offset` up to `max_rows`.
+fn slice_batches(batches: Vec<RecordBatch>, offset: usize, max_rows: usize) -> Vec<RecordBatch> {
+    let mut remaining = max_rows;
+    let mut result = Vec::new();
+    let mut skip = offset;
+
+    for batch in batches {
+        if skip >= batch.num_rows() {
+            skip -= batch.num_rows();
+            continue;
+        }
+        let start = skip;
+        let take = remaining.min(batch.num_rows() - start);
+        result.push(batch.slice(start, take));
+        remaining -= take;
+        if remaining <= 0 {
+            break;
+        }
+        skip = 0;
+    }
+
+    result
 }
 
 pub async fn search_lancedb(

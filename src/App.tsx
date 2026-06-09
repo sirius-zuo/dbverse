@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { appVersion } from "./api/tauri";
 import { listConnections, saveConnection, deleteConnection } from "./api/profiles";
-import type { ConnectionProfile, DatabaseKind, Tab } from "./api/types";
+import type { ConnectionProfile, DatabaseKind, TableSchema, Tab, LanceDbDatasetSchema, DatasetSelection } from "./api/types";
 import { DbTypePicker } from "./components/DbTypePicker";
 import { Sidebar } from "./components/Sidebar";
 import { WorkspaceArea } from "./components/WorkspaceArea";
@@ -16,6 +16,8 @@ export function App() {
     tabId: string;
     profile: ConnectionProfile;
   } | null>(null);
+  const [selectedTable, setSelectedTable] = useState<{ profileId: string; tableName: string } | null>(null);
+  const [selectedDataset, setSelectedDataset] = useState<{ profileId: string; datasetName: string } | null>(null);
 
   useEffect(() => {
     void appVersion().then(setVersion).catch(() => setVersion("unknown"));
@@ -31,6 +33,12 @@ export function App() {
       t.type === "workspace" && !t.unsaved ? [t.profile.id] : []
     )
   );
+
+  const activeWorkspaceProfile = (
+    tabs.find((t) => t.id === activeTabId && t.type === "workspace") as
+      | Extract<Tab, { type: "workspace" }>
+      | undefined
+  )?.profile ?? null;
 
   function openTab(tab: Tab) {
     setTabs((prev) => (prev.some((t) => t.id === tab.id) ? prev : [...prev, tab]));
@@ -143,6 +151,18 @@ export function App() {
     setPendingSave(null);
   }
 
+  function handleTableSelect(profile: ConnectionProfile, tableId: string) {
+    const tableName = tableId.startsWith("table:") ? tableId.slice(6) : tableId;
+    setSelectedTable({ profileId: profile.id, tableName });
+    setSelectedDataset(null);
+  }
+
+  function handleDatasetSelect(_profile: ConnectionProfile, datasetId: string, _schema: LanceDbDatasetSchema) {
+    const datasetName = datasetId.startsWith("dataset:") ? datasetId.slice(8) : datasetId;
+    setSelectedDataset({ profileId: _profile.id, datasetName });
+    setSelectedTable(null);
+  }
+
   if (activeDbKind === null) {
     return (
       <main className="app-shell app-shell-picker">
@@ -157,12 +177,17 @@ export function App() {
         activeKind={activeDbKind}
         profiles={sidebarProfiles}
         openProfileIds={openProfileIds}
+        activeProfile={activeWorkspaceProfile}
         version={version}
         onKindSelect={setActiveDbKind}
         onNew={handleNew}
         onOpen={handleOpen}
         onEdit={handleEdit}
         onDelete={handleDelete}
+        onTableSelect={handleTableSelect}
+        onDatasetSelect={handleDatasetSelect}
+        selectedTable={selectedTable}
+        selectedDataset={selectedDataset}
       />
       <WorkspaceArea
         tabs={tabs}
@@ -175,6 +200,12 @@ export function App() {
         onConnectEdit={handleConnectEdit}
         onSave={handleSave}
         onSkipSave={handleSkipSave}
+        selectedTable={selectedTable}
+        selectedDataset={selectedDataset}
+        onTablePreviewClose={() => {
+          setSelectedTable(null);
+          setSelectedDataset(null);
+        }}
       />
     </main>
   );

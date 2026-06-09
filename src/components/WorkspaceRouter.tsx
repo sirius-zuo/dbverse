@@ -1,13 +1,16 @@
-import type { ConnectionProfile } from "../api/types";
+import type { ConnectionProfile, TableSelection, DatasetSelection } from "../api/types";
 import { LanceDbWorkspace } from "../workspaces/lancedb/LanceDbWorkspace";
 import { PostgresWorkspace } from "../workspaces/postgres/PostgresWorkspace";
 import { SQLiteWorkspace } from "../workspaces/sqlite/SQLiteWorkspace";
 
 interface WorkspaceRouterProps {
   profile: ConnectionProfile | null;
+  selectedTable: TableSelection | null;
+  selectedDataset: DatasetSelection | null;
+  onTablePreviewClose(): void;
 }
 
-export function WorkspaceRouter({ profile }: WorkspaceRouterProps) {
+export function WorkspaceRouter({ profile, selectedTable, selectedDataset, onTablePreviewClose }: WorkspaceRouterProps) {
   if (!profile) {
     return (
       <section className="workspace-empty">
@@ -18,12 +21,28 @@ export function WorkspaceRouter({ profile }: WorkspaceRouterProps) {
   }
 
   if (profile.kind === "sqlite") {
-    return <SQLiteWorkspace profile={profile} />;
+    const tableSelection =
+      selectedTable && selectedTable.profileId === profile.id
+        ? { tableName: selectedTable.tableName } as const
+        : null;
+    return (
+      <SQLiteWorkspace
+        profile={profile}
+        selectedTable={tableSelection}
+        onTablePreviewClose={onTablePreviewClose}
+      />
+    );
   }
 
   if (profile.kind === "postgresql") {
     return <PostgresWorkspace profile={profile} />;
   }
 
-  return <LanceDbWorkspace profile={profile} />;
+  return (
+    <LanceDbWorkspace
+      profile={profile}
+      selectedDataset={selectedDataset}
+      onDatasetPreviewClose={onTablePreviewClose}
+    />
+  );
 }

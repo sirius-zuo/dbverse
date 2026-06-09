@@ -5,6 +5,10 @@ import { describe, expect, it, vi } from "vitest";
 import { NewConnectionForm } from "./NewConnectionForm";
 import type { ConnectionProfile } from "../api/types";
 
+vi.mock("@tauri-apps/plugin-dialog", () => ({
+  open: vi.fn(),
+}));
+
 describe("NewConnectionForm — sqlite", () => {
   it("renders a Path field and Connect button", () => {
     render(<NewConnectionForm kind="sqlite" onConnect={vi.fn()} onCancel={vi.fn()} />);
@@ -95,5 +99,17 @@ describe("NewConnectionForm — lancedb", () => {
   it("renders a Path field", () => {
     render(<NewConnectionForm kind="lancedb" onConnect={vi.fn()} onCancel={vi.fn()} />);
     expect(screen.getByLabelText("Path")).toBeInTheDocument();
+  });
+});
+
+describe("NewConnectionForm — browse button", () => {
+  it("shows a Browse button for SQLite", () => {
+    render(<NewConnectionForm kind="sqlite" onConnect={vi.fn()} onCancel={vi.fn()} />);
+    expect(screen.getByRole("button", { name: /browse/i })).toBeInTheDocument();
+  });
+
+  it("shows a Browse button for LanceDB", () => {
+    render(<NewConnectionForm kind="lancedb" onConnect={vi.fn()} onCancel={vi.fn()} />);
+    expect(screen.getByRole("button", { name: /browse/i })).toBeInTheDocument();
   });
 });

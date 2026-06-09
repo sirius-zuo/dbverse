@@ -16,7 +16,7 @@ vi.mock("./api/profiles", () => ({
 describe("App", () => {
   it("shows the db type picker on cold start", () => {
     render(<App />);
-    expect(screen.getByText("Choose a database type")).toBeInTheDocument();
+    expect(screen.getByText("dbverse")).toBeInTheDocument();
     expect(screen.getByText("SQLite")).toBeInTheDocument();
   });
 

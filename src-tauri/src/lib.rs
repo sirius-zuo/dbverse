@@ -5,6 +5,7 @@ pub mod errors;
 pub mod profiles;
 pub mod query_safety;
 pub mod result_model;
+pub mod sqlite_schema;
 
 use connectors::sqlite::SqliteConnector;
 
@@ -12,9 +13,28 @@ use std::path::PathBuf;
 
 use connectors::ConnectorRegistry;
 use domain::{ConnectionProfile, ConnectorCapabilities, DatabaseKind};
-use errors::AppRuntimeError;
+use errors::{AppError, AppErrorCategory, AppRuntimeError};
 use profiles::{load_profiles, save_profiles, validate_profile};
 use query_safety::{classify_sql, StatementClassification};
+use sqlite_schema::{get_table_page, get_table_schema, list_indexes, list_tables, list_views};
+use sqlite_schema::{FilterOp, ColumnFilter};
+use sqlite_schema::{sqlite_get_table_page_sorted as sqlite_schema_get_table_page_sorted, sqlite_get_total_rows as sqlite_schema_get_total_rows};
+
+#[tauri::command]
+fn select_file() -> Result<Option<String>, AppRuntimeError> {
+    use rfd::FileDialog;
+    
+    let result = FileDialog::new()
+        .set_title("Select SQLite Database")
+        .add_filter("SQLite Database", &["db", "sqlite", "sqlite3"])
+        .add_filter("Any File", &["*"])
+        .pick_file();
+    
+    match result {
+        Some(path) => Ok(Some(path.to_string_lossy().to_string())),
+        None => Ok(None),
+    }
+}
 
 #[tauri::command]
 fn classify_statement(sql: String) -> StatementClassification {
@@ -138,12 +158,222 @@ async fn search_lancedb(
 }
 
 #[tauri::command]
+async fn lancedb_list_datasets(path: String) -> Result<Vec<String>, AppRuntimeError> {
+    connectors::lancedb::list_lancedb_datasets(&path)
+        .await
+        .map_err(|error| {
+            AppRuntimeError::User(errors::AppError {
+                category: errors::AppErrorCategory::QueryError,
+                message: "LanceDB list datasets failed.".to_string(),
+                recovery_hint: Some("Check that the path points to a valid LanceDB database.".to_string()),
+                technical_details: Some(error.to_string()),
+                operation_id: None,
+            })
+        })
+}
+
+#[tauri::command]
+async fn lancedb_query_dataset(
+    request: connectors::lancedb::LanceDbQueryRequest,
+) -> Result<(connectors::lancedb::LanceDbDatasetInfo, result_model::ResultSet), AppRuntimeError> {
+    connectors::lancedb::query_lancedb_dataset(request)
+        .await
+        .map_err(|error| {
+            AppRuntimeError::User(errors::AppError {
+                category: errors::AppErrorCategory::QueryError,
+                message: "LanceDB query failed.".to_string(),
+                recovery_hint: Some("Check the database path and dataset name.".to_string()),
+                technical_details: Some(error.to_string()),
+                operation_id: None,
+            })
+        })
+}
+
+#[tauri::command]
 async fn embed_text_openai(
     api_key: String,
     model: String,
     input: String,
 ) -> Result<embeddings::EmbeddingResponse, AppRuntimeError> {
     embeddings::embed_with_openai(api_key, model, input).await
+}
+
+#[tauri::command]
+fn sqlite_list_tables(path: String) -> Result<Vec<String>, AppRuntimeError> {
+    let connection = rusqlite::Connection::open(&path).map_err(|_| {
+        AppRuntimeError::User(AppError {
+            category: AppErrorCategory::ConnectionFailed,
+            message: "Could not open SQLite database.".into(),
+            recovery_hint: Some("Check that the file exists and is readable.".into()),
+            technical_details: None,
+            operation_id: None,
+        })
+    })?;
+    Ok(list_tables(&connection).map_err(|e| {
+        AppRuntimeError::User(AppError {
+            category: AppErrorCategory::QueryError,
+            message: "Failed to list tables.".into(),
+            recovery_hint: None,
+            technical_details: Some(e.to_string()),
+            operation_id: None,
+        })
+    })?)
+}
+
+#[tauri::command]
+fn sqlite_list_views(path: String) -> Result<Vec<String>, AppRuntimeError> {
+    let connection = rusqlite::Connection::open(&path).map_err(|_| {
+        AppRuntimeError::User(AppError {
+            category: AppErrorCategory::ConnectionFailed,
+            message: "Could not open SQLite database.".into(),
+            recovery_hint: Some("Check that the file exists and is readable.".into()),
+            technical_details: None,
+            operation_id: None,
+        })
+    })?;
+    Ok(list_views(&connection).map_err(|e| {
+        AppRuntimeError::User(AppError {
+            category: AppErrorCategory::QueryError,
+            message: "Failed to list views.".into(),
+            recovery_hint: None,
+            technical_details: Some(e.to_string()),
+            operation_id: None,
+        })
+    })?)
+}
+
+#[tauri::command]
+fn sqlite_list_indexes(path: String) -> Result<Vec<(String, String)>, AppRuntimeError> {
+    let connection = rusqlite::Connection::open(&path).map_err(|_| {
+        AppRuntimeError::User(AppError {
+            category: AppErrorCategory::ConnectionFailed,
+            message: "Could not open SQLite database.".into(),
+            recovery_hint: Some("Check that the file exists and is readable.".into()),
+            technical_details: None,
+            operation_id: None,
+        })
+    })?;
+    Ok(list_indexes(&connection).map_err(|e| {
+        AppRuntimeError::User(AppError {
+            category: AppErrorCategory::QueryError,
+            message: "Failed to list indexes.".into(),
+            recovery_hint: None,
+            technical_details: Some(e.to_string()),
+            operation_id: None,
+        })
+    })?)
+}
+
+#[tauri::command]
+fn sqlite_get_table_schema(path: String, table: String) -> Result<domain::TableSchema, AppRuntimeError> {
+    let connection = rusqlite::Connection::open(&path).map_err(|_| {
+        AppRuntimeError::User(AppError {
+            category: AppErrorCategory::ConnectionFailed,
+            message: "Could not open SQLite database.".into(),
+            recovery_hint: Some("Check that the file exists and is readable.".into()),
+            technical_details: None,
+            operation_id: None,
+        })
+    })?;
+    get_table_schema(&connection, &table).map_err(|e| {
+        AppRuntimeError::User(AppError {
+            category: AppErrorCategory::QueryError,
+            message: "Failed to get table schema.".into(),
+            recovery_hint: None,
+            technical_details: Some(e.to_string()),
+            operation_id: None,
+        })
+    })
+}
+
+#[tauri::command]
+fn sqlite_get_table_page(path: String, table: String, offset: usize, limit: usize) -> Result<result_model::ResultSet, AppRuntimeError> {
+    let connection = rusqlite::Connection::open(&path).map_err(|_| {
+        AppRuntimeError::User(AppError {
+            category: AppErrorCategory::ConnectionFailed,
+            message: "Could not open SQLite database.".into(),
+            recovery_hint: Some("Check that the file exists and is readable.".into()),
+            technical_details: None,
+            operation_id: None,
+        })
+    })?;
+    get_table_page(&connection, &table, offset, limit).map_err(|e| {
+        AppRuntimeError::User(AppError {
+            category: AppErrorCategory::QueryError,
+            message: "Failed to get table page.".into(),
+            recovery_hint: None,
+            technical_details: Some(e.to_string()),
+            operation_id: None,
+        })
+    })
+}
+
+#[tauri::command]
+fn sqlite_get_table_page_sorted(
+    path: String,
+    table: String,
+    offset: u64,
+    limit: u64,
+    sort_column: Option<String>,
+    sort_direction: Option<String>,
+    filters: Vec<(String, String, String)>,
+    global_search: Option<String>,
+) -> Result<result_model::ResultSet, AppRuntimeError> {
+    let connection = rusqlite::Connection::open(&path).map_err(|_| {
+        AppRuntimeError::User(AppError {
+            category: AppErrorCategory::ConnectionFailed,
+            message: "Could not open SQLite database.".into(),
+            recovery_hint: Some("Check that the file exists and is readable.".into()),
+            technical_details: None,
+            operation_id: None,
+        })
+    })?;
+    let parsed_filters: Vec<ColumnFilter> = filters
+        .into_iter()
+        .filter_map(|(col, op, val)| {
+            op.parse::<FilterOp>().ok().map(|op| (col, op, val))
+        })
+        .collect();
+    sqlite_schema_get_table_page_sorted(
+        &connection,
+        &table,
+        offset,
+        limit,
+        sort_column.as_deref(),
+        sort_direction.as_deref(),
+        &parsed_filters,
+        global_search.as_deref(),
+    ).map_err(|e| {
+        AppRuntimeError::User(AppError {
+            category: AppErrorCategory::QueryError,
+            message: "Failed to get table page.".into(),
+            recovery_hint: None,
+            technical_details: Some(e.to_string()),
+            operation_id: None,
+        })
+    })
+}
+
+#[tauri::command]
+fn sqlite_get_total_rows(path: String, table: String) -> Result<i64, AppRuntimeError> {
+    let connection = rusqlite::Connection::open(&path).map_err(|_| {
+        AppRuntimeError::User(AppError {
+            category: AppErrorCategory::ConnectionFailed,
+            message: "Could not open SQLite database.".into(),
+            recovery_hint: Some("Check that the file exists and is readable.".into()),
+            technical_details: None,
+            operation_id: None,
+        })
+    })?;
+    sqlite_schema_get_total_rows(&connection, &table).map_err(|e| {
+        AppRuntimeError::User(AppError {
+            category: AppErrorCategory::QueryError,
+            message: "Failed to get row count.".into(),
+            recovery_hint: None,
+            technical_details: Some(e.to_string()),
+            operation_id: None,
+        })
+    })
 }
 
 pub fn run() {
@@ -155,10 +385,20 @@ pub fn run() {
             list_connections,
             save_connection,
             delete_connection,
+            select_file,
             sqlite_execute_file_query,
+            sqlite_list_tables,
+            sqlite_list_views,
+            sqlite_list_indexes,
+            sqlite_get_table_schema,
+            sqlite_get_table_page,
+            sqlite_get_table_page_sorted,
+            sqlite_get_total_rows,
             postgres_execute_query,
             embed_text_openai,
-            search_lancedb
+            search_lancedb,
+            lancedb_list_datasets,
+            lancedb_query_dataset
         ])
         .run(tauri::generate_context!())
         .expect("failed to run dbverse");

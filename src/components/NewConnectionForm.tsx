@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import type { ConnectionProfile, DatabaseKind, PostgresSslMode } from "../api/types";
 
 interface Props {
@@ -66,6 +67,17 @@ export function NewConnectionForm({ kind, initialProfile, onConnect, onCancel }:
     };
   }
 
+  async function handleBrowseFile() {
+    try {
+      const selected = await invoke<string | null>("select_file");
+      if (selected !== null) {
+        setPath(selected);
+      }
+    } catch (err) {
+      setError(`Failed to open file dialog: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
   function handleConnect() {
     setError(null);
     const profile = buildProfile();
@@ -81,14 +93,20 @@ export function NewConnectionForm({ kind, initialProfile, onConnect, onCancel }:
       </header>
 
       {(kind === "sqlite" || kind === "lancedb") && (
-        <label className="field-label">
-          Path
-          <input
-            id="field-path"
-            aria-label="Path"
-            value={path}
-            onChange={(e) => setPath(e.target.value)}
-          />
+        <label className="field-label field-label-with-button">
+          <span className="field-label-text">Path</span>
+          <div className="field-input-row">
+            <input
+              id="field-path"
+              aria-label="Path"
+              value={path}
+              onChange={(e) => setPath(e.target.value)}
+              placeholder="/path/to/database.db"
+            />
+            <button type="button" className="field-browse-btn" onClick={handleBrowseFile}>
+              Browse…
+            </button>
+          </div>
         </label>
       )}
 

@@ -8,12 +8,17 @@ const baseProps = {
   activeKind: "sqlite" as const,
   profiles: [],
   openProfileIds: new Set<string>(),
+  activeProfile: null,
   version: "0.1.0",
   onKindSelect: vi.fn(),
   onNew: vi.fn(),
   onOpen: vi.fn(),
   onEdit: vi.fn(),
   onDelete: vi.fn(),
+  onTableSelect: vi.fn(),
+  onDatasetSelect: vi.fn(),
+  selectedTable: null,
+  selectedDataset: null,
 };
 
 describe("Sidebar", () => {

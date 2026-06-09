@@ -114,3 +114,55 @@ export type Tab =
   | { id: string; type: "new-connection"; kind: DatabaseKind }
   | { id: string; type: "edit-connection"; profile: ConnectionProfile }
   | { id: string; type: "workspace"; profile: ConnectionProfile; unsaved: boolean };
+
+export interface TableColumn {
+  name: string;
+  databaseType: string;
+  isPrimaryKey: boolean;
+}
+
+export interface TableIndex {
+  name: string;
+  columnNames: string[];
+}
+
+export interface TableSchema {
+  name: string;
+  columns: TableColumn[];
+  indexes: TableIndex[];
+  rowCount: number;
+}
+
+export type FilterOperator = "contains" | "eq" | "gt" | "lt" | "gte" | "lte";
+
+export interface ColumnFilter {
+  column: string;
+  op: FilterOperator;
+  value: string;
+}
+
+export type SortDirection = "ASC" | "DESC" | null;
+
+export interface SortConfig {
+  column: string;
+  direction: SortDirection;
+}
+
+/** Represents a selected table for the preview panel */
+export interface TableSelection {
+  profileId: string;
+  tableName: string;
+}
+
+/** Represents a selected dataset for the preview panel (LanceDB) */
+export interface DatasetSelection {
+  profileId: string;
+  datasetName: string;
+}
+
+export interface LanceDbDatasetSchema {
+  name: string;
+  columnNames: string[];
+  columnTypes: string[];
+  rowCount: number;
+}
