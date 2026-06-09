@@ -132,3 +132,18 @@ export interface TableSchema {
   indexes: TableIndex[];
   rowCount: number;
 }
+
+export type FilterOperator = "contains" | "eq" | "gt" | "lt" | "gte" | "lte";
+
+export interface ColumnFilter {
+  column: string;
+  op: FilterOperator;
+  value: string;
+}
+
+export type SortDirection = "ASC" | "DESC" | null;
+
+export interface SortConfig {
+  column: string;
+  direction: SortDirection;
+}
