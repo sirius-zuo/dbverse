@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import { TablePreview } from "./TablePreview";
-import type { ConnectionProfile, TableSchema } from "../api/types";
+import type { ConnectionProfile, TableSchema, ResultColumn } from "../api/types";
 
 // Mock API
 vi.mock("../api/browse", () => ({
@@ -31,6 +31,12 @@ const mockSchema: TableSchema = {
   rowCount: 0,
 };
 
+const mockResultColumns: ResultColumn[] = [
+  { name: "id", valueType: "integer", databaseType: "INTEGER" },
+  { name: "name", valueType: "text", databaseType: "TEXT" },
+  { name: "email", valueType: "text", databaseType: "TEXT" },
+];
+
 describe("TablePreview", () => {
   it("renders loading state initially", async () => {
     vi.mocked(browse.sqliteGetTablePageSorted).mockImplementation(
@@ -44,7 +50,7 @@ describe("TablePreview", () => {
 
   it("renders table data when loaded", async () => {
     vi.mocked(browse.sqliteGetTablePageSorted).mockResolvedValue({
-      columns: mockSchema.columns,
+      columns: mockResultColumns,
       rows: [
         [{ type: "integer", value: 1 }, { type: "text", value: "Alice" }, { type: "text", value: "alice@example.com" }],
         [{ type: "integer", value: 2 }, { type: "text", value: "Bob" }, { type: "text", value: "bob@example.com" }],
@@ -73,7 +79,7 @@ describe("TablePreview", () => {
 
   it("renders pagination controls", async () => {
     vi.mocked(browse.sqliteGetTablePageSorted).mockResolvedValue({
-      columns: mockSchema.columns,
+      columns: mockResultColumns,
       rows: [
         [{ type: "integer", value: 1 }, { type: "text", value: "Alice" }, { type: "text", value: "a@b.com" }],
         [{ type: "integer", value: 2 }, { type: "text", value: "Bob" }, { type: "text", value: "b@b.com" }],
@@ -90,8 +96,8 @@ describe("TablePreview", () => {
 
   it("shows PK indicator", async () => {
     vi.mocked(browse.sqliteGetTablePageSorted).mockResolvedValue({
-      columns: mockSchema.columns,
-      rows: [[{ type: "integer", value: 1 }, { type: "text", value: "Alice" }, { type: "null", value: null }]],
+      columns: mockResultColumns,
+      rows: [[{ type: "integer", value: 1 }, { type: "text", value: "Alice" }, { type: "null" } as const]],
       metadata: { rowCount: 1, elapsedMs: 5, operationId: null, notice: null },
     });
     render(
@@ -106,7 +112,7 @@ describe("TablePreview", () => {
 
   it("calls onClose when close button is clicked", async () => {
     vi.mocked(browse.sqliteGetTablePageSorted).mockResolvedValue({
-      columns: mockSchema.columns,
+      columns: mockResultColumns,
       rows: [],
       metadata: { rowCount: 0, elapsedMs: 0, operationId: null, notice: null },
     });

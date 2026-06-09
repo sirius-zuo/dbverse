@@ -5,9 +5,11 @@ import { SQLiteWorkspace } from "../workspaces/sqlite/SQLiteWorkspace";
 
 interface WorkspaceRouterProps {
   profile: ConnectionProfile | null;
+  selectedTable: string | null;
+  onTablePreviewClose(): void;
 }
 
-export function WorkspaceRouter({ profile }: WorkspaceRouterProps) {
+export function WorkspaceRouter({ profile, selectedTable, onTablePreviewClose }: WorkspaceRouterProps) {
   if (!profile) {
     return (
       <section className="workspace-empty">
@@ -18,7 +20,13 @@ export function WorkspaceRouter({ profile }: WorkspaceRouterProps) {
   }
 
   if (profile.kind === "sqlite") {
-    return <SQLiteWorkspace profile={profile} />;
+    return (
+      <SQLiteWorkspace
+        profile={profile}
+        selectedTable={selectedTable}
+        onTablePreviewClose={onTablePreviewClose}
+      />
+    );
   }
 
   if (profile.kind === "postgresql") {

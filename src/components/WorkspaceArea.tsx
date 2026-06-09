@@ -15,6 +15,8 @@ interface Props {
   onConnectEdit(tabId: string, profile: ConnectionProfile): void;
   onSave(tabId: string, name: string): void;
   onSkipSave(tabId: string): void;
+  selectedTable: string | null;
+  onTablePreviewClose(): void;
 }
 
 export function WorkspaceArea({
@@ -28,6 +30,8 @@ export function WorkspaceArea({
   onConnectEdit,
   onSave,
   onSkipSave,
+  selectedTable,
+  onTablePreviewClose,
 }: Props) {
   const activeTab = tabs.find((t) => t.id === activeTabId) ?? null;
 
@@ -59,7 +63,7 @@ export function WorkspaceArea({
         />
       );
     }
-    return <WorkspaceRouter profile={activeTab.profile} />;
+    return <WorkspaceRouter profile={activeTab.profile} selectedTable={selectedTable} onTablePreviewClose={onTablePreviewClose} />;
   }
 
   return (

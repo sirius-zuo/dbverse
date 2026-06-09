@@ -182,6 +182,8 @@ export function App() {
         onConnectEdit={handleConnectEdit}
         onSave={handleSave}
         onSkipSave={handleSkipSave}
+        selectedTable={selectedTable}
+        onTablePreviewClose={() => setSelectedTable(null)}
       />
     </main>
   );
