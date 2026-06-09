@@ -31,11 +31,13 @@ src/               ← React frontend
   api/tauri.ts     ← invoke() wrappers for Rust commands
   api/embeddings.ts ← OpenAI embedding invoke wrapper
   api/lancedb.ts   ← LanceDB vector search invoke wrapper
+  api/browse.ts    ← SQLite table browsing API
   api/profiles.ts  ← Connection profile API
   api/sqlite.ts    ← SQLite query API
   api/postgres.ts  ← PostgreSQL query API
-  components/      ← Shared UI primitives (ConnectionManager, WorkspaceRouter, ResultGrid, ObjectTree)
+  components/      ← Shared UI primitives (ConnectionManager, WorkspaceRouter, ResultGrid, ObjectTree, SidebarTree, TablePreview, ThemeToggle)
   workspaces/      ← Database-specific workspaces (SQLite, PostgreSQL, LanceDB)
+  workspaces/sqlite/  ← SQLite-specific workspace and browse tests
   styles.css       ← Base styles
 ```
 
@@ -51,24 +53,31 @@ src/               ← React frontend
 | 4 — PostgreSQL Connector & Workspace | [Plan](docs/superpowers/plans/2026-06-07-dbverse-part-4-postgres.md) | ✅ Done (merged PR #4) |
 | 5 — LanceDB, Embeddings, Workspace | [Plan](docs/superpowers/plans/2026-06-07-dbverse-part-5-lancedb-embeddings.md) | ✅ Done (merged PR #5) |
 | 6 — Integration, E2E, Packaging | [Plan](docs/superpowers/plans/2026-06-07-dbverse-part-6-integration-packaging.md) | ✅ Done (merged PR #6) |
+| 7 — Table Browsing & LanceDB Datasets | [Plan](docs/superpowers/plans/2026-06-08-table-browsing-part1-sqlite.md) | ✅ Done (merged PR #8) |
 
-**All 6 parts complete.** Project is scaffolded, connected, and ready for feature work.
+**All 7 parts complete.** Project has full table browsing (SQLite sidebar tree + paginated data preview), LanceDB dataset browsing, result grid with cell highlighting and right-click copy, theme toggle, and SQLite schema helper module.
 
 ## Test Counts
 
-- **22 Rust unit tests** — connectors, profiles, errors, query safety, embeddings
-- **5 frontend tests** — 2 type tests + 3 workspace smoke tests
+- **36+ Rust unit tests** — connectors, profiles, errors, query safety, embeddings, SQLite schema
+- **~30 frontend tests** — type tests, workspace smokes, SidebarTree, TablePreview, SQLite browse
 - **Unified check:** `npm run check` (Vitest + TSC build + Cargo tests)
 
 ## Key Contracts (do not change without coordination)
 
-- **`src-tauri/src/domain.rs`** — `DatabaseKind`, `ConnectionProfile`, `ConnectionConfig`, `ConnectorCapabilities`, `SessionInfo`, `NavigationNode`
+- **`src-tauri/src/domain.rs`** — `DatabaseKind`, `ConnectionProfile`, `ConnectionConfig`, `ConnectorCapabilities`, `SessionInfo`, `NavigationNode`, `TableColumn`, `TableIndex`, `TableSchema`
 - **`src-tauri/src/result_model.rs`** — `ResultSet`, `Value` (tagged enum), `ResultColumn`, `ResultMetadata`, `ValueType`
 - **`src-tauri/src/errors.rs`** — `AppErrorCategory`, `AppError`, `AppRuntimeError`
 - **`src-tauri/src/connectors/mod.rs`** — `DatabaseConnector` trait + `ConnectorRegistry`
+- **`src-tauri/src/sqlite_schema.rs`** — `list_tables`, `list_views`, `list_indexes`, `get_table_schema`, `get_table_page`
 - **`src-tauri/src/query_safety.rs`** — `classify_sql()` with `StatementSafety` enum
 - **`src-tauri/src/embeddings.rs`** — `EmbeddingProviderProfile`, `embed_with_openai()`
+- **`src-tauri/src/connectors/lancedb.rs`** — `lancedb_list_datasets`, `lancedb_query_dataset`, `lancedb_search_vectors`
+- **`src/components/SidebarTree.tsx`** — Expandable sidebar tree with tables/views/indexes/datasets
+- **`src/components/TablePreview.tsx`** — Paginated data preview with schema bar, sort/filter toolbar
+- **`src/components/ResultGrid.tsx`** — Data grid with cell highlighting and right-click copy
 - **`src/api/types.ts`** — TypeScript mirror of Rust types
+- **`src/api/browse.ts`** — Tauri invoke wrappers for SQLite table browsing
 
 ## Commands
 
