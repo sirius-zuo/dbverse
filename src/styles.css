@@ -601,3 +601,245 @@ textarea {
   color: #1d4ed8;
   font-weight: 600;
 }
+
+/* TablePreview */
+.table-preview {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  margin-top: 12px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.table-preview-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.table-preview-close {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 16px;
+  color: #64748b;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.table-preview-close:hover {
+  background: #e2e8f0;
+  color: #1e293b;
+}
+
+.table-preview-title {
+  font-weight: 600;
+  font-size: 14px;
+  color: #1e293b;
+}
+
+.table-preview-row-count {
+  font-size: 12px;
+  color: #64748b;
+  margin-left: auto;
+}
+
+.table-preview-page-size {
+  font-size: 13px;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  padding: 2px 6px;
+  color: #334155;
+}
+
+.table-preview-search {
+  padding: 8px 12px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.table-preview-search input {
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  font-size: 13px;
+  box-sizing: border-box;
+}
+
+.table-preview-search input:focus {
+  outline: none;
+  border-color: #3b82f6;
+}
+
+.table-preview-headers {
+  display: flex;
+  border-bottom: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+.table-preview-column {
+  flex: 1;
+  min-width: 80px;
+  position: relative;
+  border-right: 1px solid #e2e8f0;
+  padding: 0 4px;
+}
+
+.table-preview-column:last-child {
+  border-right: none;
+}
+
+.table-preview-column-sorted {
+  background: #eef4ff;
+}
+
+.table-preview-column-header {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 4px;
+  font-size: 12px;
+}
+
+.table-preview-column-name {
+  flex: 1;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #334155;
+}
+
+.table-preview-pk {
+  font-size: 10px;
+  color: #2563eb;
+  margin-left: 4px;
+  font-weight: 600;
+}
+
+.table-preview-sort-btn,
+.table-preview-filter-btn {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 1px 3px;
+  color: #64748b;
+  border-radius: 2px;
+}
+
+.table-preview-sort-btn:hover,
+.table-preview-filter-btn:hover {
+  background: #e2e8f0;
+}
+
+.table-preview-filter-active {
+  color: #2563eb;
+  font-weight: 600;
+}
+
+.table-preview-filter-dropdown {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  background: #fff;
+  border-top: 1px solid #e2e8f0;
+}
+
+.table-preview-filter-dropdown select,
+.table-preview-filter-dropdown input {
+  font-size: 11px;
+  border: 1px solid #e2e8f0;
+  border-radius: 3px;
+  padding: 2px 4px;
+}
+
+.table-preview-filter-dropdown select {
+  width: 80px;
+}
+
+.table-preview-filter-dropdown input {
+  flex: 1;
+  min-width: 0;
+}
+
+.table-preview-filter-dropdown button {
+  font-size: 11px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  border-radius: 3px;
+  padding: 2px 6px;
+  cursor: pointer;
+  color: #334155;
+}
+
+.table-preview-filter-dropdown button:hover {
+  background: #e2e8f0;
+}
+
+.table-preview-filter-clear {
+  color: #ef4444 !important;
+  border-color: #fecaca !important;
+}
+
+.table-preview-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 8px 12px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.table-preview-page-btn {
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  border-radius: 4px;
+  padding: 4px 8px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #334155;
+  min-width: 28px;
+  text-align: center;
+}
+
+.table-preview-page-btn:hover:not(:disabled) {
+  background: #f0f4ff;
+  border-color: #c7d2fe;
+}
+
+.table-preview-page-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.table-preview-page-active {
+  background: #3b82f6 !important;
+  color: #fff;
+  border-color: #3b82f6 !important;
+}
+
+.table-preview-ellipsis {
+  padding: 0 4px;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.table-preview-loading {
+  padding: 20px;
+  text-align: center;
+  color: #64748b;
+  font-size: 14px;
+}
+
+.table-preview-error {
+  padding: 10px 12px;
+  background: #fef2f2;
+  color: #dc2626;
+  font-size: 13px;
+  border-bottom: 1px solid #fecaca;
+}
