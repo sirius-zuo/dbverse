@@ -646,6 +646,32 @@ button:focus, input:focus, textarea:focus, select:focus { outline: none; }
   font-size: 10px;
 }
 
+/* Context menu on right-click */
+.result-context-menu {
+  background: var(--bg-panel);
+  border: 1px solid var(--bd);
+  border-radius: var(--r);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+  min-width: 120px;
+}
+
+.result-context-menu-item {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  border: none;
+  background: none;
+  color: var(--tx-0);
+  font-size: 12px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.result-context-menu-item:hover {
+  background: var(--bg-hover);
+}
+
 /* ============================================================
    FORM FIELDS
    ============================================================ */
