@@ -33,6 +33,8 @@ export function ResultGrid({ result }: ResultGridProps) {
     x: number;
     y: number;
     value: ResultValue | null;
+    highlightRow: number;
+    highlightCol: number;
   } | null>(null);
   const gridRef = useRef<HTMLDivElement>(null);
 
@@ -42,17 +44,19 @@ export function ResultGrid({ result }: ResultGridProps) {
       setContextMenu(null);
     }
     if (contextMenu) {
-      document.addEventListener("click", handleClick);
+      document.addEventListener("click", handleClick, { once: true });
       return () => document.removeEventListener("click", handleClick);
     }
   }, [contextMenu]);
 
   function handleCellContextMenu(
     e: React.MouseEvent,
+    rowIndex: number,
+    columnIndex: number,
     value: ResultValue
   ) {
     e.preventDefault();
-    setContextMenu({ x: e.clientX, y: e.clientY, value });
+    setContextMenu({ x: e.clientX, y: e.clientY, value, highlightRow: rowIndex, highlightCol: columnIndex });
   }
 
   function handleCopy() {
@@ -81,9 +85,15 @@ export function ResultGrid({ result }: ResultGridProps) {
           {row.map((value, columnIndex) => (
             <div
               key={columnIndex}
-              className="result-cell"
+              className={`result-cell ${
+                contextMenu &&
+                contextMenu.highlightRow === rowIndex &&
+                contextMenu.highlightCol === columnIndex
+                  ? "result-cell-highlight"
+                  : ""
+              }`}
               role="cell"
-              onContextMenu={(e) => handleCellContextMenu(e, value)}
+              onContextMenu={(e) => handleCellContextMenu(e, rowIndex, columnIndex, value)}
             >
               {renderValue(value)}
             </div>

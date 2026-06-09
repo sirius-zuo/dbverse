@@ -646,6 +646,13 @@ button:focus, input:focus, textarea:focus, select:focus { outline: none; }
   font-size: 10px;
 }
 
+/* Highlighted cell (right-clicked) */
+.result-cell-highlight {
+  outline: 2px solid var(--amber);
+  outline-offset: -2px;
+  background: var(--bg-hover);
+}
+
 /* Context menu on right-click */
 .result-context-menu {
   background: var(--bg-panel);
