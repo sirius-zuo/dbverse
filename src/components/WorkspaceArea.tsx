@@ -18,6 +18,7 @@ interface Props {
   onCancelSave(): void;
   selectedTable: TableSelection | null;
   selectedDataset: DatasetSelection | null;
+  selectedRedisKey: { profileId: string; key: string } | null;
   onTablePreviewClose(): void;
   onInteract?(): void;
 }
@@ -36,6 +37,7 @@ export function WorkspaceArea({
   onCancelSave,
   selectedTable,
   selectedDataset,
+  selectedRedisKey,
   onTablePreviewClose,
   onInteract,
 }: Props) {
@@ -76,6 +78,13 @@ export function WorkspaceArea({
         sessionPassword={activeTab.type === "workspace" ? activeTab.sessionPassword : undefined}
         selectedTable={selectedTable}
         selectedDataset={selectedDataset}
+        selectedRedisKey={
+          selectedRedisKey && activeTab?.type === "workspace"
+            ? selectedRedisKey.profileId === activeTab.profile.id
+              ? selectedRedisKey.key
+              : null
+            : null
+        }
         onTablePreviewClose={onTablePreviewClose}
       />
     );

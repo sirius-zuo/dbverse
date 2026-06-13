@@ -2,16 +2,18 @@ import type { ConnectionProfile, TableSelection, DatasetSelection } from "../api
 import { LanceDbWorkspace } from "../workspaces/lancedb/LanceDbWorkspace";
 import { PostgresWorkspace } from "../workspaces/postgres/PostgresWorkspace";
 import { SQLiteWorkspace } from "../workspaces/sqlite/SQLiteWorkspace";
+import { RedisWorkspace } from "../workspaces/redis/RedisWorkspace";
 
 interface WorkspaceRouterProps {
   profile: ConnectionProfile | null;
   sessionPassword?: string;
   selectedTable: TableSelection | null;
   selectedDataset: DatasetSelection | null;
+  selectedRedisKey?: string | null;
   onTablePreviewClose(): void;
 }
 
-export function WorkspaceRouter({ profile, sessionPassword, selectedTable, selectedDataset, onTablePreviewClose }: WorkspaceRouterProps) {
+export function WorkspaceRouter({ profile, sessionPassword, selectedTable, selectedDataset, selectedRedisKey, onTablePreviewClose }: WorkspaceRouterProps) {
   if (!profile) {
     return (
       <section className="workspace-empty">
@@ -46,6 +48,17 @@ export function WorkspaceRouter({ profile, sessionPassword, selectedTable, selec
         initialPassword={sessionPassword}
         selectedTable={pgTableSelection}
         onTablePreviewClose={onTablePreviewClose}
+      />
+    );
+  }
+
+  if (profile.kind === "redis") {
+    return (
+      <RedisWorkspace
+        profile={profile}
+        initialPassword={sessionPassword}
+        selectedKey={selectedRedisKey ?? null}
+        onKeyPreviewClose={onTablePreviewClose}
       />
     );
   }

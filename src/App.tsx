@@ -22,6 +22,7 @@ export function App() {
   } | null>(null);
   const [selectedTable, setSelectedTable] = useState<{ profileId: string; tableName: string } | null>(null);
   const [selectedDataset, setSelectedDataset] = useState<{ profileId: string; datasetName: string } | null>(null);
+  const [selectedRedisKey, setSelectedRedisKey] = useState<{ profileId: string; key: string } | null>(null);
 
   useEffect(() => {
     void appVersion().then(setVersion).catch(() => setVersion("unknown"));
@@ -97,7 +98,7 @@ export function App() {
       (t) => t.type === "workspace" && t.profile.id === profile.id
     );
     if (existing) { setActiveTabId(existing.id); return; }
-    if (profile.kind === "postgresql") {
+    if (profile.kind === "postgresql" || profile.kind === "redis") {
       setPendingOpenPg(profile);
       return;
     }
@@ -216,6 +217,12 @@ export function App() {
     setSelectedTable(null);
   }
 
+  function handleRedisKeySelect(profile: ConnectionProfile, key: string) {
+    setSelectedRedisKey({ profileId: profile.id, key });
+    setSelectedTable(null);
+    setSelectedDataset(null);
+  }
+
   if (activeDbKind === null) {
     return (
       <main className="app-shell app-shell-picker">
@@ -240,7 +247,7 @@ export function App() {
         onDelete={handleDelete}
         onTableSelect={handleTableSelect}
         onDatasetSelect={handleDatasetSelect}
-        onRedisKeySelect={() => {}}
+        onRedisKeySelect={handleRedisKeySelect}
         selectedTable={selectedTable}
         selectedDataset={selectedDataset}
       />
@@ -266,9 +273,11 @@ export function App() {
         onCancelSave={handleCancelSave}
         selectedTable={selectedTable}
         selectedDataset={selectedDataset}
+        selectedRedisKey={selectedRedisKey}
         onTablePreviewClose={() => {
           setSelectedTable(null);
           setSelectedDataset(null);
+          setSelectedRedisKey(null);
         }}
       />
     </main>
