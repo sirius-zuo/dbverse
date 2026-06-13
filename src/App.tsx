@@ -24,13 +24,19 @@ export function App() {
     void listConnections().then(setSavedProfiles).catch(() => setSavedProfiles([]));
   }, []);
 
-  // Sync the type dropdown whenever the active tab becomes a workspace.
-  useEffect(() => {
-    const activeTab = tabs.find((t) => t.id === activeTabId);
-    if (activeTab?.type === "workspace") {
-      setActiveDbKind(activeTab.profile.kind);
+  function syncKindFromTab(tabId: string) {
+    setActiveTabId(tabId);
+    const tab = tabs.find((t) => t.id === tabId);
+    if (tab?.type === "workspace") {
+      setActiveDbKind(tab.profile.kind);
     }
-  }, [activeTabId, tabs]);
+  }
+
+  function syncKindFromActiveWorkspace() {
+    if (activeWorkspaceProfile) {
+      setActiveDbKind(activeWorkspaceProfile.kind);
+    }
+  }
 
   const sidebarProfiles = activeDbKind
     ? savedProfiles.filter((p) => p.kind === activeDbKind)
@@ -205,7 +211,8 @@ export function App() {
         tabs={tabs}
         activeTabId={activeTabId}
         pendingSave={pendingSave}
-        onActivate={setActiveTabId}
+        onActivate={syncKindFromTab}
+        onInteract={syncKindFromActiveWorkspace}
         onClose={closeTab}
         onNew={handleNew}
         onConnectNew={handleConnectNew}

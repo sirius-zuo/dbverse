@@ -18,6 +18,7 @@ interface Props {
   selectedTable: TableSelection | null;
   selectedDataset: DatasetSelection | null;
   onTablePreviewClose(): void;
+  onInteract?(): void;
 }
 
 export function WorkspaceArea({
@@ -34,6 +35,7 @@ export function WorkspaceArea({
   selectedTable,
   selectedDataset,
   onTablePreviewClose,
+  onInteract,
 }: Props) {
   const activeTab = tabs.find((t) => t.id === activeTabId) ?? null;
 
@@ -77,7 +79,7 @@ export function WorkspaceArea({
   }
 
   return (
-    <div className="workspace-area">
+    <div className="workspace-area" onClickCapture={onInteract}>
       <TabBar
         tabs={tabs}
         activeTabId={activeTabId}
