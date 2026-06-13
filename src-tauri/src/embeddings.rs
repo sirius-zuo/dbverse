@@ -40,7 +40,8 @@ pub fn validate_embedding_profile(profile: &EmbeddingProviderProfile) -> Result<
     Ok(())
 }
 
-pub async fn embed_with_openai(
+pub async fn embed_with_openai_compatible(
+    base_url: String,
     api_key: String,
     model: String,
     input: String,
@@ -62,16 +63,22 @@ pub async fn embed_with_openai(
         embedding: Vec<f32>,
     }
 
-    let response = reqwest::Client::new()
-        .post("https://api.openai.com/v1/embeddings")
-        .bearer_auth(api_key)
-        .json(&RequestBody { model, input })
+    let url = format!("{}/embeddings", base_url.trim_end_matches('/'));
+    let mut request = reqwest::Client::new()
+        .post(&url)
+        .json(&RequestBody { model, input });
+
+    if !api_key.is_empty() {
+        request = request.bearer_auth(api_key);
+    }
+
+    let response = request
         .send()
         .await
         .map_err(|error| AppRuntimeError::User(AppError {
             category: AppErrorCategory::ProviderError,
-            message: "OpenAI embedding request failed.".to_string(),
-            recovery_hint: Some("Check your network connection and API key.".to_string()),
+            message: "Embedding request failed.".to_string(),
+            recovery_hint: Some("Check your network connection and the base URL.".to_string()),
             technical_details: Some(error.to_string()),
             operation_id: None,
         }))?;
@@ -79,8 +86,8 @@ pub async fn embed_with_openai(
     if !response.status().is_success() {
         return Err(AppRuntimeError::User(AppError {
             category: AppErrorCategory::ProviderError,
-            message: "OpenAI rejected the embedding request.".to_string(),
-            recovery_hint: Some("Check the API key, model, and account access.".to_string()),
+            message: "Embedding provider rejected the request.".to_string(),
+            recovery_hint: Some("Check the base URL, API key, and model name.".to_string()),
             technical_details: Some(response.status().to_string()),
             operation_id: None,
         }));
@@ -89,7 +96,7 @@ pub async fn embed_with_openai(
     let body = response.json::<ResponseBody>().await.map_err(|error| {
         AppRuntimeError::User(AppError {
             category: AppErrorCategory::SerializationError,
-            message: "OpenAI embedding response could not be parsed.".to_string(),
+            message: "Embedding response could not be parsed.".to_string(),
             recovery_hint: None,
             technical_details: Some(error.to_string()),
             operation_id: None,

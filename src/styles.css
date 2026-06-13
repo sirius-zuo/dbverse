@@ -798,6 +798,12 @@ button:focus, input:focus, textarea:focus, select:focus { outline: none; }
 .field-label input:focus,
 .field-label select:focus { border-color: var(--bd-hi); }
 
+.field-optional {
+  font-weight: 400;
+  color: var(--tx-2);
+  margin-left: 4px;
+}
+
 .lancedb-controls {
   display: flex;
   flex-wrap: wrap;

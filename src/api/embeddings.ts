@@ -7,11 +7,13 @@ export interface EmbeddingResponse {
 }
 
 export function embedTextOpenAI(
+  baseUrl: string,
   apiKey: string,
   model: string,
   input: string
 ): Promise<EmbeddingResponse> {
   return invoke<EmbeddingResponse>("embed_text_openai", {
+    baseUrl,
     apiKey,
     model,
     input,

@@ -19,6 +19,7 @@ export function LanceDbWorkspace({
 }: LanceDbWorkspaceProps) {
   const path =
     profile.config.kind === "lancedb" ? profile.config.path : "";
+  const [baseUrl, setBaseUrl] = useState("https://api.openai.com/v1");
   const [apiKey, setApiKey] = useState("");
   const [model, setModel] = useState("text-embedding-3-small");
   const [table, setTable] = useState("");
@@ -83,7 +84,7 @@ export function LanceDbWorkspace({
   async function runEmbeddingSearch() {
     setMessage(null);
     try {
-      const embedding = await embedTextOpenAI(apiKey, model, query);
+      const embedding = await embedTextOpenAI(baseUrl, apiKey, model, query);
       setResult(
         await searchLanceDb({
           path,
@@ -117,7 +118,7 @@ export function LanceDbWorkspace({
         </div>
         <button
           onClick={runEmbeddingSearch}
-          disabled={!apiKey.trim() || !query.trim()}
+          disabled={!baseUrl.trim() || !query.trim()}
         >
           Embed + Search
         </button>
@@ -222,11 +223,20 @@ export function LanceDbWorkspace({
         <>
           <div className="lancedb-controls">
             <label className="field-label">
-              OpenAI API key
+              Base URL
+              <input
+                value={baseUrl}
+                onChange={(event) => setBaseUrl(event.target.value)}
+                placeholder="https://api.openai.com/v1"
+              />
+            </label>
+            <label className="field-label">
+              API key <span className="field-optional">(optional)</span>
               <input
                 type="password"
                 value={apiKey}
                 onChange={(event) => setApiKey(event.target.value)}
+                placeholder="sk-… or leave blank for local"
               />
             </label>
             <label className="field-label">

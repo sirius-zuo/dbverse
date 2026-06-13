@@ -205,11 +205,12 @@ async fn lancedb_query_dataset(
 
 #[tauri::command]
 async fn embed_text_openai(
+    base_url: String,
     api_key: String,
     model: String,
     input: String,
 ) -> Result<embeddings::EmbeddingResponse, AppRuntimeError> {
-    embeddings::embed_with_openai(api_key, model, input).await
+    embeddings::embed_with_openai_compatible(base_url, api_key, model, input).await
 }
 
 #[tauri::command]
