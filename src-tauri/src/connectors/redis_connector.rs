@@ -17,12 +17,13 @@ pub fn build_redis_url(profile: &ConnectionProfile, password: Option<&str>) -> O
 }
 
 fn urlencoding(s: &str) -> String {
-    s.chars()
-        .flat_map(|c| {
-            if c.is_alphanumeric() || "-_.~".contains(c) {
-                vec![c]
+    // Encode UTF-8 bytes, not Unicode codepoints, to produce correct percent-encoding.
+    s.bytes()
+        .flat_map(|b| {
+            if b.is_ascii_alphanumeric() || b"-_.~".contains(&b) {
+                format!("{}", b as char).chars().collect::<Vec<_>>()
             } else {
-                format!("%{:02X}", c as u32).chars().collect()
+                format!("%{:02X}", b).chars().collect::<Vec<_>>()
             }
         })
         .collect()
@@ -149,5 +150,13 @@ mod tests {
             last_used_at: None,
         };
         assert!(build_redis_url(&profile, None).is_none());
+    }
+
+    #[test]
+    fn url_special_chars_in_credentials_are_encoded() {
+        let profile = redis_profile(Some("user@host"), 0);
+        let url = build_redis_url(&profile, Some("p@ss:w%rd")).unwrap();
+        assert!(url.contains("user%40host"), "@ in username must be encoded");
+        assert!(url.contains("p%40ss%3Aw%25rd"), "@ : % in password must be encoded");
     }
 }
