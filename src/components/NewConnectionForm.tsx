@@ -31,6 +31,22 @@ export function NewConnectionForm({ kind, initialProfile, onConnect, onCancel }:
     initCfg?.kind === "postgresql" ? initCfg.sslMode : "prefer"
   );
   const [pgPassword, setPgPassword] = useState("");
+  const [redisHost, setRedisHost] = useState(
+    initCfg?.kind === "redis" ? initCfg.host : "127.0.0.1"
+  );
+  const [redisPort, setRedisPort] = useState(
+    initCfg?.kind === "redis" ? String(initCfg.port) : "6379"
+  );
+  const [redisDb, setRedisDb] = useState(
+    initCfg?.kind === "redis" ? String(initCfg.db) : "0"
+  );
+  const [redisUsername, setRedisUsername] = useState(
+    initCfg?.kind === "redis" ? (initCfg.username ?? "") : ""
+  );
+  const [redisPassword, setRedisPassword] = useState("");
+  const [redisSeparator, setRedisSeparator] = useState(
+    initCfg?.kind === "redis" ? initCfg.keySeparator : ":"
+  );
   const [error, setError] = useState<string | null>(null);
 
   function buildProfile(): ConnectionProfile | null {
@@ -46,26 +62,54 @@ export function NewConnectionForm({ kind, initialProfile, onConnect, onCancel }:
       };
     }
     // postgresql
-    if (!host.trim()) { setError("Host is required."); return null; }
-    const portNum = parseInt(port, 10);
-    if (!port.trim() || isNaN(portNum)) { setError("Port must be a number."); return null; }
-    if (!database.trim()) { setError("Database is required."); return null; }
-    if (!username.trim()) { setError("Username is required."); return null; }
-    return {
-      id: initialProfile?.id ?? crypto.randomUUID(),
-      displayName: `${username.trim()}@${host.trim()}/${database.trim()}`,
-      kind: "postgresql",
-      config: {
+    if (kind === "postgresql") {
+      if (!host.trim()) { setError("Host is required."); return null; }
+      const portNum = parseInt(port, 10);
+      if (!port.trim() || isNaN(portNum)) { setError("Port must be a number."); return null; }
+      if (!database.trim()) { setError("Database is required."); return null; }
+      if (!username.trim()) { setError("Username is required."); return null; }
+      return {
+        id: initialProfile?.id ?? crypto.randomUUID(),
+        displayName: `${username.trim()}@${host.trim()}/${database.trim()}`,
         kind: "postgresql",
-        host: host.trim(),
-        port: portNum,
-        database: database.trim(),
-        username: username.trim(),
-        sslMode,
-      },
-      secretRefs: initialProfile?.secretRefs ?? [],
-      lastUsedAt: null,
-    };
+        config: {
+          kind: "postgresql",
+          host: host.trim(),
+          port: portNum,
+          database: database.trim(),
+          username: username.trim(),
+          sslMode,
+        },
+        secretRefs: initialProfile?.secretRefs ?? [],
+        lastUsedAt: null,
+      };
+    }
+    // redis
+    if (kind === "redis") {
+      if (!redisHost.trim()) { setError("Host is required."); return null; }
+      const rPortNum = parseInt(redisPort, 10);
+      if (!redisPort.trim() || isNaN(rPortNum)) { setError("Port must be a number."); return null; }
+      const dbNum = parseInt(redisDb, 10);
+      if (!redisDb.trim() || isNaN(dbNum) || dbNum < 0 || dbNum > 15) {
+        setError("Database must be 0–15."); return null;
+      }
+      return {
+        id: initialProfile?.id ?? crypto.randomUUID(),
+        displayName: `${redisHost.trim()}:${rPortNum}/${dbNum}`,
+        kind: "redis" as const,
+        config: {
+          kind: "redis" as const,
+          host: redisHost.trim(),
+          port: rPortNum,
+          username: redisUsername.trim() || null,
+          db: dbNum,
+          keySeparator: redisSeparator || ":",
+        },
+        secretRefs: initialProfile?.secretRefs ?? [],
+        lastUsedAt: null,
+      };
+    }
+    return null;
   }
 
   async function handleBrowseFile() {
@@ -82,7 +126,12 @@ export function NewConnectionForm({ kind, initialProfile, onConnect, onCancel }:
   function handleConnect() {
     setError(null);
     const profile = buildProfile();
-    if (profile) onConnect(profile, kind === "postgresql" ? pgPassword || undefined : undefined);
+    if (!profile) return;
+    const password =
+      kind === "postgresql" ? pgPassword || undefined :
+      kind === "redis" ? redisPassword || undefined :
+      undefined;
+    onConnect(profile, password);
   }
 
   return (
@@ -150,6 +199,35 @@ export function NewConnectionForm({ kind, initialProfile, onConnect, onCancel }:
               <option value="prefer">prefer</option>
               <option value="require">require</option>
             </select>
+          </label>
+        </>
+      )}
+
+      {kind === "redis" && (
+        <>
+          <label className="field-label">
+            Host
+            <input aria-label="Host" value={redisHost} onChange={(e) => setRedisHost(e.target.value)} />
+          </label>
+          <label className="field-label">
+            Port
+            <input aria-label="Port" type="number" value={redisPort} onChange={(e) => setRedisPort(e.target.value)} />
+          </label>
+          <label className="field-label">
+            Database (0–15)
+            <input aria-label="Database" type="number" min={0} max={15} value={redisDb} onChange={(e) => setRedisDb(e.target.value)} />
+          </label>
+          <label className="field-label">
+            Username
+            <input aria-label="Username" value={redisUsername} onChange={(e) => setRedisUsername(e.target.value)} placeholder="(optional, for ACL auth)" />
+          </label>
+          <label className="field-label">
+            Password
+            <input type="password" aria-label="Password" value={redisPassword} onChange={(e) => setRedisPassword(e.target.value)} placeholder="Leave blank if no password" />
+          </label>
+          <label className="field-label">
+            Key separator
+            <input aria-label="Key separator" value={redisSeparator} onChange={(e) => setRedisSeparator(e.target.value)} placeholder=":" />
           </label>
         </>
       )}

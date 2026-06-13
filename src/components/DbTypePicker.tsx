@@ -8,6 +8,7 @@ const DB_TYPES: { kind: DatabaseKind; label: string; description: string; icon: 
   { kind: "sqlite",     label: "SQLite",     description: "file-based\nembedded",        icon: "◈" },
   { kind: "postgresql", label: "PostgreSQL", description: "client/server\nrelational",   icon: "◉" },
   { kind: "lancedb",    label: "LanceDB",    description: "vector\nembeddings",          icon: "◎" },
+  { kind: "redis",      label: "Redis",      description: "in-memory\nkey-value",        icon: "◐" },
 ];
 
 export function DbTypePicker({ onSelect }: Props) {
