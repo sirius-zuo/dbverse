@@ -6,11 +6,12 @@ interface Props {
   onSelect(kind: DatabaseKind): void;
 }
 
-const KINDS: DatabaseKind[] = ["sqlite", "postgresql", "lancedb"];
+const KINDS: DatabaseKind[] = ["sqlite", "postgresql", "lancedb", "redis"];
 const LABELS: Record<DatabaseKind, string> = {
   sqlite: "SQLite",
   postgresql: "PostgreSQL",
   lancedb: "LanceDB",
+  redis: "Redis",
 };
 
 export function TypeDropdown({ activeKind, onSelect }: Props) {

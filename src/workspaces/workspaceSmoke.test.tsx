@@ -19,7 +19,16 @@ function profile(kind: ConnectionProfile["kind"]): ConnectionProfile {
             username: "postgres",
             sslMode: "prefer",
           }
-        : { kind, path: "/tmp/dbverse-test" },
+        : kind === "redis"
+        ? {
+            kind,
+            host: "localhost",
+            port: 6379,
+            username: null,
+            db: 0,
+            keySeparator: ":",
+          }
+        : { kind: kind as "sqlite" | "lancedb", path: "/tmp/dbverse-test" },
     secretRefs: [],
     lastUsedAt: null,
   };

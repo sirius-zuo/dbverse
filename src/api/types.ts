@@ -1,4 +1,4 @@
-export type DatabaseKind = "sqlite" | "postgresql" | "lancedb";
+export type DatabaseKind = "sqlite" | "postgresql" | "lancedb" | "redis";
 
 export type PostgresSslMode = "disable" | "prefer" | "require";
 
@@ -12,7 +12,15 @@ export type ConnectionConfig =
       username: string;
       sslMode: PostgresSslMode;
     }
-  | { kind: "lancedb"; path: string };
+  | { kind: "lancedb"; path: string }
+  | {
+      kind: "redis";
+      host: string;
+      port: number;
+      username: string | null;
+      db: number;
+      keySeparator: string;
+    };
 
 export interface SecretRef {
   key: string;
@@ -38,6 +46,8 @@ export interface ConnectorCapabilities {
   supportsSchemaSql: boolean;
   supportsIndexes: boolean;
   supportsFunctions: boolean;
+  supportsKeyBrowse: boolean;
+  supportsTtl: boolean;
 }
 
 export interface SessionInfo {
@@ -165,4 +175,50 @@ export interface LanceDbDatasetSchema {
   columnNames: string[];
   columnTypes: string[];
   rowCount: number;
+}
+
+export type RedisResponse =
+  | { type: "nil" }
+  | { type: "status"; value: string }
+  | { type: "integer"; value: number }
+  | { type: "bulkString"; value: string }
+  | { type: "array"; value: RedisResponse[] };
+
+export type RedisKeyType =
+  | "string" | "hash" | "list" | "set" | "zSet" | "stream" | "unknown";
+
+export interface HashField {
+  name: string;
+  value: string;
+}
+
+export interface ZSetEntry {
+  member: string;
+  score: number;
+}
+
+export interface StreamEntry {
+  id: string;
+  fields: HashField[];
+}
+
+export type RedisKeyValue =
+  | { kind: "stringVal"; value: string }
+  | { kind: "hashVal"; fields: HashField[] }
+  | { kind: "listVal"; items: string[] }
+  | { kind: "setVal"; members: string[] }
+  | { kind: "zSetVal"; entries: ZSetEntry[] }
+  | { kind: "streamVal"; entries: StreamEntry[] }
+  | { kind: "unknown" };
+
+export interface RedisKeyInfo {
+  key: string;
+  keyType: RedisKeyType;
+  ttl: number | null;
+  value: RedisKeyValue;
+}
+
+export interface RedisScanResult {
+  keys: string[];
+  nextCursor: number;
 }
