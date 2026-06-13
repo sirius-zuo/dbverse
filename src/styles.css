@@ -675,6 +675,10 @@ button:focus, input:focus, textarea:focus, select:focus { outline: none; }
 }
 .query-editor:focus { border-color: var(--bd-hi); }
 
+.lancedb-query-label {
+  max-width: none;
+}
+
 /* ============================================================
    ERROR BANNER
    ============================================================ */

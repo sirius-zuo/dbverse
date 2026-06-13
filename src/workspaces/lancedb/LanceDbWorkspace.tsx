@@ -273,12 +273,15 @@ export function LanceDbWorkspace({
               />
             </label>
           </div>
-          <textarea
-            className="query-editor"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            aria-label="Natural language LanceDB search"
-          />
+          <label className="field-label lancedb-query-label">
+            Query
+            <textarea
+              className="query-editor"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Enter text to embed and search…"
+            />
+          </label>
         </>
       )}
       {message ? <div className="error-banner">{message}</div> : null}
