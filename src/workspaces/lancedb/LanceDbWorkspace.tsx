@@ -285,6 +285,7 @@ export function LanceDbWorkspace({
         </>
       )}
       {message ? <div className="error-banner">{message}</div> : null}
+      {result && <p className="lancedb-results-label">Query results</p>}
       <ResultGrid result={result} />
     </section>
   );

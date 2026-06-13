@@ -675,8 +675,9 @@ button:focus, input:focus, textarea:focus, select:focus { outline: none; }
 }
 .query-editor:focus { border-color: var(--bd-hi); }
 
-.lancedb-query-label {
+.field-label.lancedb-query-label {
   max-width: none;
+  width: 100%;
 }
 
 /* ============================================================
@@ -696,6 +697,13 @@ button:focus, input:focus, textarea:focus, select:focus { outline: none; }
 /* ============================================================
    RESULT GRID
    ============================================================ */
+
+.lancedb-results-label {
+  margin: 16px 0 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--tx-1);
+}
 
 .result-grid {
   overflow: auto;
