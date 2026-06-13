@@ -4,6 +4,7 @@ pub mod embeddings;
 pub mod errors;
 pub mod profiles;
 pub mod query_safety;
+pub mod redis_model;
 pub mod result_model;
 pub mod sqlite_schema;
 
