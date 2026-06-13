@@ -1,10 +1,6 @@
 use crate::domain::{ConnectionConfig, ConnectionProfile};
 use crate::errors::{AppError, AppErrorCategory, AppRuntimeError};
-use crate::redis_model::{
-    HashField, RedisScanResult, RedisKeyInfo, RedisKeyType, RedisKeyValue,
-    RedisResponse, StreamEntry, ZSetEntry,
-};
-use std::collections::HashMap;
+use crate::redis_model::RedisResponse;
 
 pub fn build_redis_url(profile: &ConnectionProfile, password: Option<&str>) -> Option<String> {
     let ConnectionConfig::Redis { host, port, username, db, .. } = &profile.config else {
