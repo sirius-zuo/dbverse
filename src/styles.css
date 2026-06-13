@@ -695,6 +695,166 @@ button:focus, input:focus, textarea:focus, select:focus { outline: none; }
 }
 
 /* ============================================================
+   REDIS
+   ============================================================ */
+
+.redis-workspace .query-editor {
+  min-height: 80px;
+}
+
+/* RedisResultView */
+.redis-result { padding: 12px 16px; }
+
+.redis-nil {
+  font-style: italic;
+  color: var(--tx-2);
+  font-size: 12px;
+}
+
+.redis-status {
+  color: var(--green);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.redis-integer {
+  color: var(--amber);
+  font-size: 13px;
+  font-family: var(--font);
+}
+
+.redis-bulk-string {
+  margin: 0;
+  padding: 8px 12px;
+  background: var(--bg-input);
+  border: 1px solid var(--bd-dim);
+  border-radius: var(--r);
+  font-size: 12px;
+  color: var(--tx-0);
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.redis-array {
+  margin: 0;
+  padding: 0 0 0 20px;
+  list-style: decimal;
+}
+
+.redis-array-item {
+  padding: 2px 0;
+  font-size: 12px;
+  color: var(--tx-0);
+}
+
+/* RedisKeyPreview body */
+.redis-key-string {
+  margin: 12px 16px;
+  padding: 10px 14px;
+  background: var(--bg-input);
+  border: 1px solid var(--bd-dim);
+  border-radius: var(--r);
+  font-size: 12px;
+  color: var(--tx-0);
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.redis-hash-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.redis-hash-table th {
+  text-align: left;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--bd);
+  color: var(--tx-1);
+  font-weight: 600;
+  font-size: 11px;
+}
+.redis-hash-table td {
+  padding: 5px 12px;
+  border-bottom: 1px solid var(--bd-dim);
+  color: var(--tx-0);
+  vertical-align: top;
+  word-break: break-all;
+}
+.redis-hash-table tr:last-child td { border-bottom: none; }
+
+.redis-list {
+  margin: 8px 16px;
+  padding: 0 0 0 20px;
+  font-size: 12px;
+  color: var(--tx-0);
+}
+.redis-list li { padding: 3px 0; }
+
+.redis-stream { padding: 8px 16px; }
+.redis-stream-entry {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--bd-dim);
+}
+.redis-stream-entry:last-child { border-bottom: none; }
+.redis-stream-id {
+  color: var(--amber);
+  font-size: 11px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.redis-stream-field {
+  display: flex;
+  gap: 8px;
+  font-size: 12px;
+  padding: 1px 0;
+}
+.redis-stream-fname { color: var(--tx-1); min-width: 100px; flex-shrink: 0; }
+.redis-stream-fval  { color: var(--tx-0); word-break: break-all; }
+
+/* Type badges */
+.redis-type-badge {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 2px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+.redis-type-string  { background: rgba(121,192,255,0.15); color: var(--blue); }
+.redis-type-hash    { background: rgba(188,140,255,0.15); color: #bc8cff; }
+.redis-type-list    { background: rgba(240,136,62,0.15);  color: var(--orange); }
+.redis-type-set     { background: rgba(86,211,100,0.15);  color: var(--green); }
+.redis-type-zSet    { background: rgba(229,192,123,0.15); color: var(--amber); }
+.redis-type-stream  { background: rgba(248,81,73,0.15);   color: var(--red); }
+.redis-type-unknown { background: var(--bg-overlay);       color: var(--tx-2); }
+
+.redis-ttl-chip {
+  font-size: 11px;
+  color: var(--tx-1);
+}
+
+/* Sidebar load-more button */
+.tree-load-more {
+  display: block;
+  width: 100%;
+  padding: 6px 12px;
+  border: 1px dashed var(--bd);
+  background: transparent;
+  color: var(--tx-1);
+  font-size: 11px;
+  cursor: pointer;
+  text-align: center;
+  margin-top: 4px;
+  border-radius: var(--r);
+}
+.tree-load-more:hover { border-color: var(--bd-hi); color: var(--tx-0); }
+.tree-load-more:disabled { opacity: 0.4; cursor: default; }
+
+/* ============================================================
    QUERY EDITOR
    ============================================================ */
 
