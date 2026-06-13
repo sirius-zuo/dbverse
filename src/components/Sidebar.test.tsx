@@ -18,6 +18,7 @@ const baseProps = {
   onDelete: vi.fn(),
   onTableSelect: vi.fn(),
   onDatasetSelect: vi.fn(),
+  onRedisKeySelect: vi.fn(),
   selectedTable: null,
   selectedDataset: null,
 };

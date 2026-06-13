@@ -18,6 +18,7 @@ interface Props {
   onDelete(profile: ConnectionProfile): void;
   onTableSelect(profile: ConnectionProfile, tableId: string, schema: TableSchema): void;
   onDatasetSelect(profile: ConnectionProfile, datasetId: string, schema: LanceDbDatasetSchema): void;
+  onRedisKeySelect(profile: ConnectionProfile, key: string): void;
   selectedTable: TableSelection | null;
   selectedDataset: DatasetSelection | null;
 }
@@ -36,6 +37,7 @@ export function Sidebar({
   onDelete,
   onTableSelect,
   onDatasetSelect,
+  onRedisKeySelect,
   selectedTable,
   selectedDataset,
 }: Props) {
@@ -130,6 +132,7 @@ export function Sidebar({
             selectedTable={selectedTable ? `table:${selectedTable.tableName}` : selectedDataset ? `dataset:${selectedDataset.datasetName}` : null}
             onTableSelect={(tableId, schema) => onTableSelect(activeProfile, tableId, schema)}
             onDatasetSelect={(datasetId, schema) => onDatasetSelect(activeProfile, datasetId, schema)}
+            onRedisKeySelect={(key) => onRedisKeySelect(activeProfile, key)}
           />
         </div>
       )}

@@ -240,6 +240,7 @@ export function App() {
         onDelete={handleDelete}
         onTableSelect={handleTableSelect}
         onDatasetSelect={handleDatasetSelect}
+        onRedisKeySelect={() => {}}
         selectedTable={selectedTable}
         selectedDataset={selectedDataset}
       />

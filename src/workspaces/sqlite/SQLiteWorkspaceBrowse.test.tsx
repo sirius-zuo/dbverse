@@ -47,6 +47,7 @@ describe("SQLiteWorkspace with browsing integration", () => {
         selectedTable={null}
         onTableSelect={() => {}}
         onDatasetSelect={() => {}}
+        onRedisKeySelect={() => {}}
       />
     );
 
@@ -68,6 +69,7 @@ describe("SQLiteWorkspace with browsing integration", () => {
         selectedTable={null}
         onTableSelect={onTableSelect}
         onDatasetSelect={() => {}}
+        onRedisKeySelect={() => {}}
       />
     );
 

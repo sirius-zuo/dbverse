@@ -38,7 +38,7 @@ const mockSchema: TableSchema = {
 
 describe("SidebarTree", () => {
   it("renders loading state initially", () => {
-    render(<SidebarTree profile={mockProfile} selectedTable={null} onTableSelect={() => {}} onDatasetSelect={() => {}} />);
+    render(<SidebarTree profile={mockProfile} selectedTable={null} onTableSelect={() => {}} onDatasetSelect={() => {}} onRedisKeySelect={() => {}} />);
     expect(screen.getByText(/Loading/i)).toBeTruthy();
   });
 
@@ -48,7 +48,7 @@ describe("SidebarTree", () => {
     vi.mocked(browseApi.sqliteListIndexes).mockResolvedValue([]);
     vi.mocked(lancedbApi.listLanceDbDatasets).mockResolvedValue([]);
 
-    render(<SidebarTree profile={mockProfile} selectedTable={null} onTableSelect={() => {}} onDatasetSelect={() => {}} />);
+    render(<SidebarTree profile={mockProfile} selectedTable={null} onTableSelect={() => {}} onDatasetSelect={() => {}} onRedisKeySelect={() => {}} />);
 
     await waitFor(() => screen.getByText(/Tables \(2\)/i), { timeout: 3000 });
     expect(screen.getByText("users")).toBeTruthy();
@@ -69,6 +69,7 @@ describe("SidebarTree", () => {
         selectedTable={null}
         onTableSelect={onTableSelect}
         onDatasetSelect={() => {}}
+        onRedisKeySelect={() => {}}
       />
     );
 
@@ -85,7 +86,7 @@ describe("SidebarTree", () => {
       ...mockProfile,
       config: { kind: "sqlite", path: "" },
     };
-    render(<SidebarTree profile={emptyProfile} selectedTable={null} onTableSelect={() => {}} onDatasetSelect={() => {}} />);
+    render(<SidebarTree profile={emptyProfile} selectedTable={null} onTableSelect={() => {}} onDatasetSelect={() => {}} onRedisKeySelect={() => {}} />);
     await waitFor(() => screen.getByText(/No SQLite path/i), { timeout: 3000 });
   });
 
@@ -98,7 +99,7 @@ describe("SidebarTree", () => {
     ]);
     vi.mocked(lancedbApi.listLanceDbDatasets).mockResolvedValue([]);
 
-    render(<SidebarTree profile={mockProfile} selectedTable={null} onTableSelect={() => {}} onDatasetSelect={() => {}} />);
+    render(<SidebarTree profile={mockProfile} selectedTable={null} onTableSelect={() => {}} onDatasetSelect={() => {}} onRedisKeySelect={() => {}} />);
 
     await waitFor(() => screen.getByText(/Indexes \(2\)/i), { timeout: 3000 });
   });
@@ -115,6 +116,7 @@ describe("SidebarTree", () => {
         selectedTable="table:users"
         onTableSelect={() => {}}
         onDatasetSelect={() => {}}
+        onRedisKeySelect={() => {}}
       />
     );
 
@@ -129,7 +131,7 @@ describe("SidebarTree", () => {
     vi.mocked(browseApi.sqliteListIndexes).mockResolvedValue([]);
     vi.mocked(lancedbApi.listLanceDbDatasets).mockResolvedValue([]);
 
-    render(<SidebarTree profile={mockProfile} selectedTable={null} onTableSelect={() => {}} onDatasetSelect={() => {}} />);
+    render(<SidebarTree profile={mockProfile} selectedTable={null} onTableSelect={() => {}} onDatasetSelect={() => {}} onRedisKeySelect={() => {}} />);
 
     await waitFor(() => screen.getByText(/Tables \(1\)/i), { timeout: 3000 });
     const header = screen.getByText(/Tables \(1\)/i).closest(".tree-group-header") as HTMLElement;
@@ -149,7 +151,7 @@ describe("SidebarTree", () => {
     vi.mocked(browseApi.sqliteListIndexes).mockResolvedValue([]);
     vi.mocked(lancedbApi.listLanceDbDatasets).mockResolvedValue([]);
 
-    render(<SidebarTree profile={mockProfile} selectedTable={null} onTableSelect={() => {}} onDatasetSelect={() => {}} />);
+    render(<SidebarTree profile={mockProfile} selectedTable={null} onTableSelect={() => {}} onDatasetSelect={() => {}} onRedisKeySelect={() => {}} />);
 
     await waitFor(() => screen.getByText(/Views \(1\)/i), { timeout: 3000 });
   });
@@ -160,7 +162,7 @@ describe("SidebarTree", () => {
     vi.mocked(browseApi.sqliteListIndexes).mockResolvedValue([]);
     vi.mocked(lancedbApi.listLanceDbDatasets).mockResolvedValue([]);
 
-    render(<SidebarTree profile={mockProfile} selectedTable={null} onTableSelect={() => {}} onDatasetSelect={() => {}} />);
+    render(<SidebarTree profile={mockProfile} selectedTable={null} onTableSelect={() => {}} onDatasetSelect={() => {}} onRedisKeySelect={() => {}} />);
 
     await waitFor(() => screen.getByText(/No tables found/i), { timeout: 3000 });
   });

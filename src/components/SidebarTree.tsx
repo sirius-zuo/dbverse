@@ -8,6 +8,32 @@ import {
 } from "../api/browse";
 import { listLanceDbDatasets, queryLanceDbDataset } from "../api/lancedb";
 import { postgresExecuteQuery } from "../api/postgres";
+import { redisScanKeys } from "../api/redis";
+
+export interface NamespaceNode {
+  label: string;
+  fullKey: string | null;
+  children: Map<string, NamespaceNode>;
+}
+
+export function parseRedisKeys(keys: string[], separator: string): NamespaceNode {
+  const root: NamespaceNode = { label: "", fullKey: null, children: new Map() };
+  for (const key of keys) {
+    const parts = key.split(separator);
+    let node = root;
+    for (let i = 0; i < parts.length; i++) {
+      const part = parts[i];
+      if (!node.children.has(part)) {
+        node.children.set(part, { label: part, fullKey: null, children: new Map() });
+      }
+      node = node.children.get(part)!;
+      if (i === parts.length - 1) {
+        node.fullKey = key;
+      }
+    }
+  }
+  return root;
+}
 
 interface SidebarTreeProps {
   profile: ConnectionProfile;
@@ -15,6 +41,7 @@ interface SidebarTreeProps {
   selectedTable: string | null;
   onTableSelect(tableId: string, schema: TableSchema): void;
   onDatasetSelect(datasetId: string, schema: LanceDbDatasetSchema): void;
+  onRedisKeySelect(key: string): void;
 }
 
 interface TreeGroup {
@@ -52,6 +79,7 @@ export function SidebarTree({
   selectedTable,
   onTableSelect,
   onDatasetSelect,
+  onRedisKeySelect,
 }: SidebarTreeProps) {
   const [sqliteGroups, setSqliteGroups] = useState<TreeGroup[]>([]);
   const [sqliteLoading, setSqliteLoading] = useState(true);
@@ -68,6 +96,13 @@ export function SidebarTree({
   const lancedbPath =
     profile.config.kind === "lancedb" ? profile.config.path : "";
   const isPg = profile.config.kind === "postgresql";
+  const isRedis = profile.config.kind === "redis";
+  const redisSeparator = profile.config.kind === "redis" ? profile.config.keySeparator : ":";
+  const [redisTree, setRedisTree] = useState<NamespaceNode | null>(null);
+  const [redisLoading, setRedisLoading] = useState(true);
+  const [redisError, setRedisError] = useState<string | null>(null);
+  const [redisNextCursor, setRedisNextCursor] = useState<number>(0);
+  const [redisLoadingMore, setRedisLoadingMore] = useState(false);
 
   // Load SQLite tree
   useEffect(() => {
@@ -209,11 +244,48 @@ export function SidebarTree({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isPg, profile.id, sessionPassword]);
 
+  // Load Redis keys
+  useEffect(() => {
+    if (!isRedis) {
+      setRedisTree(null);
+      setRedisLoading(false);
+      setRedisError(null);
+      return;
+    }
+    if (sessionPassword === undefined) {
+      setRedisTree(null);
+      setRedisLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setRedisLoading(true);
+    setRedisError(null);
+    redisScanKeys(profile, sessionPassword || null, "*", 0, 200)
+      .then((result) => {
+        if (cancelled) return;
+        setRedisTree(parseRedisKeys(result.keys, redisSeparator));
+        setRedisNextCursor(result.nextCursor);
+        setRedisLoading(false);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setRedisError(
+          typeof err === "object" && err !== null && "message" in err
+            ? String((err as Record<string, unknown>).message)
+            : "Failed to load Redis keys"
+        );
+        setRedisLoading(false);
+      });
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isRedis, profile.id, sessionPassword]);
+
   // Show loading for the active database type only
   if (
     (sqlitePath && sqliteLoading) ||
     (lancedbPath && datasetsLoading) ||
-    (isPg && pgLoading)
+    (isPg && pgLoading) ||
+    (isRedis && redisLoading)
   ) {
     return <div className="sidebar-tree-loading">Loading...</div>;
   }
@@ -221,6 +293,7 @@ export function SidebarTree({
   if (sqliteError) return <div className="sidebar-tree-error">{sqliteError}</div>;
   if (datasetsError) return <div className="sidebar-tree-error">{datasetsError}</div>;
   if (isPg && pgError) return <div className="sidebar-tree-error">{pgError}</div>;
+  if (isRedis && redisError) return <div className="sidebar-tree-error">{redisError}</div>;
 
   const pgTables = pgEntries.filter((e) => e.kind === "table");
   const pgViews = pgEntries.filter((e) => e.kind === "view");
@@ -270,8 +343,45 @@ export function SidebarTree({
         />
       )}
 
+      {/* Redis namespace tree */}
+      {isRedis && redisTree && redisTree.children.size > 0 && (
+        <RedisNamespaceGroup
+          node={redisTree}
+          selectedKey={selectedTable}
+          onKeySelect={onRedisKeySelect}
+        />
+      )}
+      {isRedis && redisNextCursor !== 0 && (
+        <button
+          className="tree-load-more"
+          disabled={redisLoadingMore}
+          onClick={async () => {
+            setRedisLoadingMore(true);
+            try {
+              const result = await redisScanKeys(profile, sessionPassword || null, "*", redisNextCursor, 200);
+              setRedisTree((prev) => {
+                const allKeys = collectKeys(prev ?? { label: "", fullKey: null, children: new Map() });
+                return parseRedisKeys([...allKeys, ...result.keys], redisSeparator);
+              });
+              setRedisNextCursor(result.nextCursor);
+            } catch {
+              // silently ignore load-more errors
+            } finally {
+              setRedisLoadingMore(false);
+            }
+          }}
+        >
+          {redisLoadingMore ? "Loading…" : "Load more keys"}
+        </button>
+      )}
+      {isRedis && (!redisTree || redisTree.children.size === 0) && (
+        <div className="sidebar-tree-empty">
+          {sessionPassword === undefined ? "Open connection to browse keys" : "No keys found"}
+        </div>
+      )}
+
       {/* Empty state */}
-      {sqliteGroups.length === 0 && datasets.length === 0 && pgEntries.length === 0 && (
+      {!isRedis && sqliteGroups.length === 0 && datasets.length === 0 && pgEntries.length === 0 && (
         <div className="sidebar-tree-empty">
           {isPg && sessionPassword === undefined ? "Open connection to browse tables" : "No tables found"}
         </div>
@@ -443,6 +553,91 @@ function LanceDbDatasetGroup({
           {!loading && !error && datasets.length === 0 && (
             <div className="sidebar-tree-empty">No datasets found</div>
           )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function collectKeys(node: NamespaceNode): string[] {
+  const keys: string[] = [];
+  if (node.fullKey !== null) keys.push(node.fullKey);
+  for (const child of node.children.values()) {
+    keys.push(...collectKeys(child));
+  }
+  return keys;
+}
+
+function RedisNamespaceGroup({
+  node,
+  selectedKey,
+  onKeySelect,
+}: {
+  node: NamespaceNode;
+  selectedKey: string | null;
+  onKeySelect(key: string): void;
+}) {
+  return (
+    <>
+      {Array.from(node.children.values()).map((child) => (
+        <RedisNamespaceNode
+          key={child.label}
+          node={child}
+          selectedKey={selectedKey}
+          onKeySelect={onKeySelect}
+        />
+      ))}
+    </>
+  );
+}
+
+function RedisNamespaceNode({
+  node,
+  selectedKey,
+  onKeySelect,
+}: {
+  node: NamespaceNode;
+  selectedKey: string | null;
+  onKeySelect(key: string): void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const isLeaf = node.children.size === 0;
+
+  if (isLeaf) {
+    return (
+      <button
+        className={`tree-item ${selectedKey === node.fullKey ? "tree-item-active" : ""}`}
+        onClick={() => node.fullKey && onKeySelect(node.fullKey)}
+      >
+        {node.label}
+      </button>
+    );
+  }
+
+  return (
+    <div className="tree-group">
+      <button className="tree-group-header" onClick={() => setExpanded(!expanded)}>
+        <span className="tree-group-label">{node.label}</span>
+        <span className="tree-group-toggle">{expanded ? "▾" : "▸"}</span>
+      </button>
+      {expanded && (
+        <div className="tree-group-items">
+          {node.fullKey && (
+            <button
+              className={`tree-item ${selectedKey === node.fullKey ? "tree-item-active" : ""}`}
+              onClick={() => node.fullKey && onKeySelect(node.fullKey)}
+            >
+              (this key)
+            </button>
+          )}
+          {Array.from(node.children.values()).map((child) => (
+            <RedisNamespaceNode
+              key={child.label}
+              node={child}
+              selectedKey={selectedKey}
+              onKeySelect={onKeySelect}
+            />
+          ))}
         </div>
       )}
     </div>
