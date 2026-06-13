@@ -7,6 +7,7 @@ pub enum DatabaseKind {
     Sqlite,
     Postgresql,
     Lancedb,
+    Redis,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -33,6 +34,14 @@ pub enum ConnectionConfig {
         ssl_mode: PostgresSslMode,
     },
     Lancedb { path: String },
+    Redis {
+        host: String,
+        port: u16,
+        username: Option<String>,
+        db: u8,
+        #[serde(rename = "keySeparator")]
+        key_separator: String,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -71,6 +80,8 @@ pub struct ConnectorCapabilities {
     pub supports_schema_sql: bool,
     pub supports_indexes: bool,
     pub supports_functions: bool,
+    pub supports_key_browse: bool,
+    pub supports_ttl: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -146,5 +157,19 @@ mod tests {
             config,
             ConnectionConfig::Postgresql { ssl_mode: PostgresSslMode::Prefer, .. }
         ));
+    }
+
+    #[test]
+    fn redis_config_serializes_correctly() {
+        let config = ConnectionConfig::Redis {
+            host: "127.0.0.1".to_string(),
+            port: 6379,
+            username: None,
+            db: 0,
+            key_separator: ":".to_string(),
+        };
+        let json = serde_json::to_string(&config).unwrap();
+        assert!(json.contains("\"kind\":\"redis\""), "expected kind:redis, got: {json}");
+        assert!(json.contains("\"keySeparator\":\":\""), "expected camelCase keySeparator, got: {json}");
     }
 }
