@@ -44,7 +44,8 @@ describe("NewConnectionForm — sqlite", () => {
       expect.objectContaining({
         kind: "sqlite",
         config: { kind: "sqlite", path: "/tmp/test.db" },
-      })
+      }),
+      undefined
     );
   });
 
@@ -85,18 +86,20 @@ describe("NewConnectionForm — sqlite", () => {
     );
     await userEvent.click(screen.getByRole("button", { name: /connect/i }));
     expect(onConnect).toHaveBeenCalledWith(
-      expect.objectContaining({ id: "existing-id" })
+      expect.objectContaining({ id: "existing-id" }),
+      undefined
     );
   });
 });
 
 describe("NewConnectionForm — postgresql", () => {
-  it("renders host, port, database, username, and ssl mode fields", () => {
+  it("renders host, port, database, username, password, and ssl mode fields", () => {
     render(<NewConnectionForm kind="postgresql" onConnect={vi.fn()} onCancel={vi.fn()} />);
     expect(screen.getByLabelText("Host")).toBeInTheDocument();
     expect(screen.getByLabelText("Port")).toBeInTheDocument();
     expect(screen.getByLabelText("Database")).toBeInTheDocument();
     expect(screen.getByLabelText("Username")).toBeInTheDocument();
+    expect(screen.getByLabelText("Password")).toBeInTheDocument();
     expect(screen.getByLabelText("SSL Mode")).toBeInTheDocument();
   });
 

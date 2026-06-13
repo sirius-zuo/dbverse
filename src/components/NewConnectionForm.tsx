@@ -5,7 +5,7 @@ import type { ConnectionProfile, DatabaseKind, PostgresSslMode } from "../api/ty
 interface Props {
   kind: DatabaseKind;
   initialProfile?: ConnectionProfile;
-  onConnect(profile: ConnectionProfile): void;
+  onConnect(profile: ConnectionProfile, password?: string): void;
   onCancel(): void;
 }
 
@@ -30,6 +30,7 @@ export function NewConnectionForm({ kind, initialProfile, onConnect, onCancel }:
   const [sslMode, setSslMode] = useState<PostgresSslMode>(
     initCfg?.kind === "postgresql" ? initCfg.sslMode : "prefer"
   );
+  const [pgPassword, setPgPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   function buildProfile(): ConnectionProfile | null {
@@ -81,7 +82,7 @@ export function NewConnectionForm({ kind, initialProfile, onConnect, onCancel }:
   function handleConnect() {
     setError(null);
     const profile = buildProfile();
-    if (profile) onConnect(profile);
+    if (profile) onConnect(profile, kind === "postgresql" ? pgPassword || undefined : undefined);
   }
 
   return (
@@ -127,6 +128,16 @@ export function NewConnectionForm({ kind, initialProfile, onConnect, onCancel }:
           <label className="field-label">
             Username
             <input aria-label="Username" value={username} onChange={(e) => setUsername(e.target.value)} />
+          </label>
+          <label className="field-label">
+            Password
+            <input
+              type="password"
+              aria-label="Password"
+              value={pgPassword}
+              onChange={(e) => setPgPassword(e.target.value)}
+              placeholder="Leave blank if no password"
+            />
           </label>
           <label className="field-label">
             SSL Mode

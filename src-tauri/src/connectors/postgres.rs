@@ -34,6 +34,114 @@ pub fn build_connection_string(profile: &ConnectionProfile, password: Option<&st
     Some(parts.join(" "))
 }
 
+fn pg_value(row: &tokio_postgres::Row, index: usize) -> Value {
+    let type_name = row.columns()[index].type_().name();
+    match type_name {
+        // Text-like
+        "text" | "varchar" | "bpchar" | "char" | "name" | "citext" => row
+            .try_get::<_, Option<String>>(index)
+            .ok()
+            .flatten()
+            .map(Value::Text)
+            .unwrap_or(Value::Null),
+
+        // Integers
+        "int8" | "bigint" | "bigserial" | "oid" => row
+            .try_get::<_, Option<i64>>(index)
+            .ok()
+            .flatten()
+            .map(Value::Integer)
+            .unwrap_or(Value::Null),
+        "int4" | "int" | "integer" | "serial" => row
+            .try_get::<_, Option<i32>>(index)
+            .ok()
+            .flatten()
+            .map(|n| Value::Integer(n as i64))
+            .unwrap_or(Value::Null),
+        "int2" | "smallint" | "smallserial" => row
+            .try_get::<_, Option<i16>>(index)
+            .ok()
+            .flatten()
+            .map(|n| Value::Integer(n as i64))
+            .unwrap_or(Value::Null),
+
+        // Floats
+        "float8" | "float" | "double precision" => row
+            .try_get::<_, Option<f64>>(index)
+            .ok()
+            .flatten()
+            .map(Value::Float)
+            .unwrap_or(Value::Null),
+        "float4" | "real" => row
+            .try_get::<_, Option<f32>>(index)
+            .ok()
+            .flatten()
+            .map(|n| Value::Float(n as f64))
+            .unwrap_or(Value::Null),
+
+        // Numeric/decimal — no native mapping; surface as text
+        "numeric" | "decimal" => row
+            .try_get::<_, Option<String>>(index)
+            .ok()
+            .flatten()
+            .map(Value::Decimal)
+            .unwrap_or(Value::Null),
+
+        // Boolean
+        "bool" | "boolean" => row
+            .try_get::<_, Option<bool>>(index)
+            .ok()
+            .flatten()
+            .map(Value::Boolean)
+            .unwrap_or(Value::Null),
+
+        // UUID
+        "uuid" => row
+            .try_get::<_, Option<uuid::Uuid>>(index)
+            .ok()
+            .flatten()
+            .map(|u| Value::Text(u.to_string()))
+            .unwrap_or(Value::Null),
+
+        // Timestamps
+        "timestamptz" => row
+            .try_get::<_, Option<chrono::DateTime<chrono::Utc>>>(index)
+            .ok()
+            .flatten()
+            .map(|ts| Value::DateTime(ts.to_rfc3339()))
+            .unwrap_or(Value::Null),
+        "timestamp" => row
+            .try_get::<_, Option<chrono::NaiveDateTime>>(index)
+            .ok()
+            .flatten()
+            .map(|ts| Value::DateTime(ts.to_string()))
+            .unwrap_or(Value::Null),
+        "date" => row
+            .try_get::<_, Option<chrono::NaiveDate>>(index)
+            .ok()
+            .flatten()
+            .map(|d| Value::DateTime(d.to_string()))
+            .unwrap_or(Value::Null),
+        "time" | "timetz" => row
+            .try_get::<_, Option<chrono::NaiveTime>>(index)
+            .ok()
+            .flatten()
+            .map(|t| Value::DateTime(t.to_string()))
+            .unwrap_or(Value::Null),
+
+        // JSON
+        "json" | "jsonb" => row
+            .try_get::<_, Option<serde_json::Value>>(index)
+            .ok()
+            .flatten()
+            .map(Value::Json)
+            .unwrap_or(Value::Null),
+
+        // Unknown — show the type name so it's clear what's missing
+        other => Value::DatabaseSpecific(format!("<{other}>")),
+    }
+}
+
 pub async fn execute_postgres_query(
     connection_string: &str,
     sql: &str,
@@ -62,19 +170,7 @@ pub async fn execute_postgres_query(
         .iter()
         .map(|row| {
             (0..row.len())
-                .map(|index| {
-                    if let Ok(value) = row.try_get::<usize, Option<String>>(index) {
-                        value.map(Value::Text).unwrap_or(Value::Null)
-                    } else if let Ok(value) = row.try_get::<usize, Option<i64>>(index) {
-                        value.map(Value::Integer).unwrap_or(Value::Null)
-                    } else if let Ok(value) = row.try_get::<usize, Option<f64>>(index) {
-                        value.map(Value::Float).unwrap_or(Value::Null)
-                    } else if let Ok(value) = row.try_get::<usize, Option<bool>>(index) {
-                        value.map(Value::Boolean).unwrap_or(Value::Null)
-                    } else {
-                        Value::DatabaseSpecific("<unsupported>".to_string())
-                    }
-                })
+                .map(|index| pg_value(row, index))
                 .collect::<Vec<_>>()
         })
         .collect();

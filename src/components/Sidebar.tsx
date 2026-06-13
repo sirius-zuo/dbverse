@@ -9,6 +9,7 @@ interface Props {
   profiles: ConnectionProfile[];
   openProfileIds: Set<string>;
   activeProfile: ConnectionProfile | null;
+  sessionPassword?: string;
   version: string;
   onKindSelect(kind: DatabaseKind): void;
   onNew(): void;
@@ -26,6 +27,7 @@ export function Sidebar({
   profiles,
   openProfileIds,
   activeProfile,
+  sessionPassword,
   version,
   onKindSelect,
   onNew,
@@ -124,6 +126,7 @@ export function Sidebar({
           <SidebarTree
             key={activeProfile.id}
             profile={activeProfile}
+            sessionPassword={sessionPassword}
             selectedTable={selectedTable ? `table:${selectedTable.tableName}` : selectedDataset ? `dataset:${selectedDataset.datasetName}` : null}
             onTableSelect={(tableId, schema) => onTableSelect(activeProfile, tableId, schema)}
             onDatasetSelect={(datasetId, schema) => onDatasetSelect(activeProfile, datasetId, schema)}

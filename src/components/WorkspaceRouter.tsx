@@ -5,12 +5,13 @@ import { SQLiteWorkspace } from "../workspaces/sqlite/SQLiteWorkspace";
 
 interface WorkspaceRouterProps {
   profile: ConnectionProfile | null;
+  sessionPassword?: string;
   selectedTable: TableSelection | null;
   selectedDataset: DatasetSelection | null;
   onTablePreviewClose(): void;
 }
 
-export function WorkspaceRouter({ profile, selectedTable, selectedDataset, onTablePreviewClose }: WorkspaceRouterProps) {
+export function WorkspaceRouter({ profile, sessionPassword, selectedTable, selectedDataset, onTablePreviewClose }: WorkspaceRouterProps) {
   if (!profile) {
     return (
       <section className="workspace-empty">
@@ -35,7 +36,18 @@ export function WorkspaceRouter({ profile, selectedTable, selectedDataset, onTab
   }
 
   if (profile.kind === "postgresql") {
-    return <PostgresWorkspace profile={profile} />;
+    const pgTableSelection =
+      selectedTable && selectedTable.profileId === profile.id
+        ? selectedTable.tableName
+        : null;
+    return (
+      <PostgresWorkspace
+        profile={profile}
+        initialPassword={sessionPassword}
+        selectedTable={pgTableSelection}
+        onTablePreviewClose={onTablePreviewClose}
+      />
+    );
   }
 
   return (

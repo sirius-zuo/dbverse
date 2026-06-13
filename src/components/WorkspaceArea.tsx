@@ -7,14 +7,15 @@ import { SaveConnectionModal } from "./SaveConnectionModal";
 interface Props {
   tabs: Tab[];
   activeTabId: string | null;
-  pendingSave: { tabId: string; profile: ConnectionProfile } | null;
+  pendingSave: { tabId: string; profile: ConnectionProfile; error?: string } | null;
   onActivate(id: string): void;
   onClose(id: string): void;
   onNew(): void;
-  onConnectNew(tabId: string, profile: ConnectionProfile): void;
+  onConnectNew(tabId: string, profile: ConnectionProfile, password?: string): void;
   onConnectEdit(tabId: string, profile: ConnectionProfile): void;
   onSave(tabId: string, name: string): void;
   onSkipSave(tabId: string): void;
+  onCancelSave(): void;
   selectedTable: TableSelection | null;
   selectedDataset: DatasetSelection | null;
   onTablePreviewClose(): void;
@@ -32,6 +33,7 @@ export function WorkspaceArea({
   onConnectEdit,
   onSave,
   onSkipSave,
+  onCancelSave,
   selectedTable,
   selectedDataset,
   onTablePreviewClose,
@@ -52,7 +54,7 @@ export function WorkspaceArea({
       return (
         <NewConnectionForm
           kind={activeTab.kind}
-          onConnect={(profile) => onConnectNew(activeTab.id, profile)}
+          onConnect={(profile, password) => onConnectNew(activeTab.id, profile, password)}
           onCancel={() => onClose(activeTab.id)}
         />
       );
@@ -71,6 +73,7 @@ export function WorkspaceArea({
       <WorkspaceRouter
         key={activeTab.id}
         profile={activeTab.profile}
+        sessionPassword={activeTab.type === "workspace" ? activeTab.sessionPassword : undefined}
         selectedTable={selectedTable}
         selectedDataset={selectedDataset}
         onTablePreviewClose={onTablePreviewClose}
@@ -91,8 +94,10 @@ export function WorkspaceArea({
       {pendingSave && (
         <SaveConnectionModal
           defaultName={pendingSave.profile.displayName}
+          error={pendingSave.error}
           onSave={(name) => onSave(pendingSave.tabId, name)}
           onSkip={() => onSkipSave(pendingSave.tabId)}
+          onCancel={onCancelSave}
         />
       )}
     </div>

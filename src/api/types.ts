@@ -113,7 +113,7 @@ export interface ResultSet {
 export type Tab =
   | { id: string; type: "new-connection"; kind: DatabaseKind }
   | { id: string; type: "edit-connection"; profile: ConnectionProfile }
-  | { id: string; type: "workspace"; profile: ConnectionProfile; unsaved: boolean };
+  | { id: string; type: "workspace"; profile: ConnectionProfile; unsaved: boolean; sessionPassword?: string };
 
 export interface TableColumn {
   name: string;

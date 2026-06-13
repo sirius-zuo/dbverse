@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { ConnectionProfile, TableSchema, LanceDbDatasetSchema } from "../api/types";
+import type { ConnectionProfile, TableSchema, LanceDbDatasetSchema, ResultValue } from "../api/types";
 import {
   sqliteListTables,
   sqliteListViews,
@@ -7,9 +7,11 @@ import {
   sqliteGetTableSchema,
 } from "../api/browse";
 import { listLanceDbDatasets, queryLanceDbDataset } from "../api/lancedb";
+import { postgresExecuteQuery } from "../api/postgres";
 
 interface SidebarTreeProps {
   profile: ConnectionProfile;
+  sessionPassword?: string;
   selectedTable: string | null;
   onTableSelect(tableId: string, schema: TableSchema): void;
   onDatasetSelect(datasetId: string, schema: LanceDbDatasetSchema): void;
@@ -21,8 +23,32 @@ interface TreeGroup {
   items: Array<{ id: string; name: string }>;
 }
 
+interface PgEntry {
+  id: string;
+  name: string;
+  kind: "table" | "view";
+}
+
+function cellText(cell: ResultValue | undefined): string {
+  if (!cell || cell.type === "null") return "";
+  if ("value" in cell && typeof cell.value === "string") return cell.value;
+  return "";
+}
+
+function extractPgError(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (typeof error === "object" && error !== null) {
+    const e = error as Record<string, unknown>;
+    const msg = typeof e.message === "string" ? e.message : "Failed to load tables";
+    const details = typeof e.technicalDetails === "string" ? `: ${e.technicalDetails}` : "";
+    return `${msg}${details}`;
+  }
+  return "Failed to load PostgreSQL tables";
+}
+
 export function SidebarTree({
   profile,
+  sessionPassword,
   selectedTable,
   onTableSelect,
   onDatasetSelect,
@@ -33,17 +59,19 @@ export function SidebarTree({
   const [datasets, setDatasets] = useState<Array<{ id: string; name: string }>>([]);
   const [datasetsLoading, setDatasetsLoading] = useState(true);
   const [datasetsError, setDatasetsError] = useState<string | null>(null);
+  const [pgEntries, setPgEntries] = useState<PgEntry[]>([]);
+  const [pgLoading, setPgLoading] = useState(true);
+  const [pgError, setPgError] = useState<string | null>(null);
 
   const sqlitePath =
     profile.config.kind === "sqlite" ? profile.config.path : "";
   const lancedbPath =
     profile.config.kind === "lancedb" ? profile.config.path : "";
+  const isPg = profile.config.kind === "postgresql";
 
   // Load SQLite tree
   useEffect(() => {
     if (!sqlitePath) {
-      // Only show error if the profile IS SQLite but has no path
-      // (for non-SQLite profiles, just clear and move on)
       if (profile.config.kind === "sqlite") {
         setSqliteError("No SQLite path configured");
       } else {
@@ -62,7 +90,6 @@ export function SidebarTree({
     ])
       .then(([tables, views, indexes]) => {
         if (cancelled) return;
-        // Group indexes by table for display
         const indexMap = new Map<string, string[]>();
         for (const [tbl, idx] of indexes) {
           if (!indexMap.has(tbl)) indexMap.set(tbl, []);
@@ -112,7 +139,6 @@ export function SidebarTree({
   // Load LanceDB datasets
   useEffect(() => {
     if (!lancedbPath) {
-      // Only set error if the profile IS LanceDB but has no path
       if (profile.config.kind === "lancedb") {
         setDatasetsError("No LanceDB path configured");
       } else {
@@ -138,35 +164,80 @@ export function SidebarTree({
     return () => { cancelled = true; };
   }, [lancedbPath]);
 
-  // Show loading if any relevant path is still loading
-  // Show loading if any relevant path is still loading
-  if ((sqlitePath && sqliteLoading) || (lancedbPath && datasetsLoading)) {
+  // Load PostgreSQL tables and views
+  useEffect(() => {
+    if (!isPg) {
+      setPgEntries([]);
+      setPgLoading(false);
+      setPgError(null);
+      return;
+    }
+    if (sessionPassword === undefined) {
+      // Saved connection opened without a session password — can't browse yet
+      setPgEntries([]);
+      setPgLoading(false);
+      setPgError(null);
+      return;
+    }
+    let cancelled = false;
+    setPgLoading(true);
+    setPgError(null);
+    postgresExecuteQuery(
+      profile,
+      sessionPassword || null,
+      "SELECT table_name, table_type FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name"
+    )
+      .then((result) => {
+        if (cancelled) return;
+        const entries: PgEntry[] = result.rows
+          .map((row) => {
+            const name = cellText(row[0]);
+            const kind = cellText(row[1]) === "VIEW" ? "view" as const : "table" as const;
+            return name ? { id: `${kind}:${name}`, name, kind } : null;
+          })
+          .filter((e): e is PgEntry => e !== null);
+        setPgEntries(entries);
+      })
+      .catch((err) => {
+        if (!cancelled) setPgError(extractPgError(err));
+      })
+      .finally(() => {
+        if (!cancelled) setPgLoading(false);
+      });
+    return () => { cancelled = true; };
+  // Re-run when profile or session password changes.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isPg, profile.id, sessionPassword]);
+
+  // Show loading for the active database type only
+  if (
+    (sqlitePath && sqliteLoading) ||
+    (lancedbPath && datasetsLoading) ||
+    (isPg && pgLoading)
+  ) {
     return <div className="sidebar-tree-loading">Loading...</div>;
   }
 
-  // Show error only for the active database kind
-  if (sqliteError) {
-    return <div className="sidebar-tree-error">{sqliteError}</div>;
-  }
-  if (datasetsError) {
-    return <div className="sidebar-tree-error">{datasetsError}</div>;
-  }
+  if (sqliteError) return <div className="sidebar-tree-error">{sqliteError}</div>;
+  if (datasetsError) return <div className="sidebar-tree-error">{datasetsError}</div>;
+  if (isPg && pgError) return <div className="sidebar-tree-error">{pgError}</div>;
+
+  const pgTables = pgEntries.filter((e) => e.kind === "table");
+  const pgViews = pgEntries.filter((e) => e.kind === "view");
 
   return (
     <div className="sidebar-tree">
       {/* SQLite groups */}
-      {sqliteGroups.length > 0 && (
-        sqliteGroups.map((group) => (
-          <TreeGroupItem
-            key={group.type}
-            group={group}
-            selectedTable={selectedTable}
-            onTableSelect={onTableSelect}
-            profile={profile}
-            path={sqlitePath}
-          />
-        ))
-      )}
+      {sqliteGroups.map((group) => (
+        <TreeGroupItem
+          key={group.type}
+          group={group}
+          selectedTable={selectedTable}
+          onTableSelect={onTableSelect}
+          path={sqlitePath}
+        />
+      ))}
+
       {/* LanceDB datasets */}
       {datasets.length > 0 && (
         <LanceDbDatasetGroup
@@ -176,9 +247,69 @@ export function SidebarTree({
           profile={profile}
         />
       )}
-      {/* Empty state — when no groups AND no datasets */}
-      {sqliteGroups.length === 0 && datasets.length === 0 && (
-        <div className="sidebar-tree-empty">No tables found</div>
+
+      {/* PostgreSQL tables */}
+      {isPg && pgTables.length > 0 && (
+        <PgEntryGroup
+          label={`Tables (${pgTables.length})`}
+          entries={pgTables}
+          selectedTable={selectedTable}
+          onEntrySelect={(entry) =>
+            onTableSelect(entry.id, { name: entry.name, columns: [], indexes: [], rowCount: 0 })
+          }
+        />
+      )}
+      {isPg && pgViews.length > 0 && (
+        <PgEntryGroup
+          label={`Views (${pgViews.length})`}
+          entries={pgViews}
+          selectedTable={selectedTable}
+          onEntrySelect={(entry) =>
+            onTableSelect(entry.id, { name: entry.name, columns: [], indexes: [], rowCount: 0 })
+          }
+        />
+      )}
+
+      {/* Empty state */}
+      {sqliteGroups.length === 0 && datasets.length === 0 && pgEntries.length === 0 && (
+        <div className="sidebar-tree-empty">
+          {isPg && sessionPassword === undefined ? "Open connection to browse tables" : "No tables found"}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PgEntryGroup({
+  label,
+  entries,
+  selectedTable,
+  onEntrySelect,
+}: {
+  label: string;
+  entries: PgEntry[];
+  selectedTable: string | null;
+  onEntrySelect(entry: PgEntry): void;
+}) {
+  const [expanded, setExpanded] = useState(true);
+  return (
+    <div className="tree-group">
+      <button className="tree-group-header" onClick={() => setExpanded(!expanded)}>
+        <span className="tree-group-label">{label}</span>
+        <span className="tree-group-toggle">{expanded ? "▾" : "▸"}</span>
+      </button>
+      {expanded && (
+        <div className="tree-group-items">
+          {entries.map((entry) => (
+            <button
+              key={entry.id}
+              className={`tree-item ${selectedTable === entry.id ? "tree-item-active" : ""}`}
+              onClick={() => onEntrySelect(entry)}
+            >
+              {entry.name}
+            </button>
+          ))}
+        </div>
       )}
     </div>
   );
@@ -188,26 +319,20 @@ function TreeGroupItem({
   group,
   selectedTable,
   onTableSelect,
-  profile,
   path,
 }: {
   group: TreeGroup;
   selectedTable: string | null;
   onTableSelect(tableId: string, schema: TableSchema): void;
-  profile: ConnectionProfile;
   path: string;
 }) {
   const [expanded, setExpanded] = useState(group.type !== "indexes");
 
   async function handleSelect(itemId: string, itemName: string) {
-    // Check if it's a table or view (not index)
     if (group.type === "indexes") {
-      // For indexes, just select the parent table
       const parts = itemId.split(":");
       const tableName = parts[1];
-      if (tableName) {
-        handleSelectTable(tableName);
-      }
+      if (tableName) handleSelectTable(tableName);
       return;
     }
     await handleSelectTable(itemName);
@@ -230,9 +355,7 @@ function TreeGroupItem({
         onClick={() => setExpanded(!expanded)}
       >
         <span className="tree-group-label">{group.label}</span>
-        <span className="tree-group-toggle">
-          {expanded ? "▾" : "▸"}
-        </span>
+        <span className="tree-group-toggle">{expanded ? "▾" : "▸"}</span>
       </button>
       {expanded && (
         <div className="tree-group-items">
@@ -278,7 +401,7 @@ function LanceDbDatasetGroup({
         path: lancedbPath,
         table: datasetName,
         offset: 0,
-        limit: 1, // Just get schema info, minimal data
+        limit: 1,
         sortColumn: null,
         sortDirection: null,
       });
@@ -302,9 +425,7 @@ function LanceDbDatasetGroup({
         onClick={() => setExpanded(!expanded)}
       >
         <span className="tree-group-label">Datasets ({datasets.length})</span>
-        <span className="tree-group-toggle">
-          {expanded ? "▾" : "▸"}
-        </span>
+        <span className="tree-group-toggle">{expanded ? "▾" : "▸"}</span>
       </button>
       {expanded && (
         <div className="tree-group-items">

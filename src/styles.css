@@ -287,6 +287,7 @@ button:focus, input:focus, textarea:focus, select:focus { outline: none; }
   z-index: 10;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
   min-width: 200px;
+  max-width: calc(var(--sidebar-w) - 24px);
   max-height: 300px;
   overflow-y: auto;
 }
@@ -654,6 +655,45 @@ button:focus, input:focus, textarea:focus, select:focus { outline: none; }
 .workspace-header button:hover:not(:disabled) { background: var(--amber-bg); }
 .workspace-header button:disabled { opacity: 0.3; cursor: default; }
 
+.pg-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.pg-conn-status {
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.pg-conn-status-testing { color: var(--tx-2); }
+.pg-conn-status-ok      { color: #3fb950; }
+.pg-conn-status-error   { color: var(--red); }
+
+.pg-password-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--tx-1);
+  white-space: nowrap;
+}
+.pg-password-input {
+  width: 130px;
+  padding: 3px 6px;
+  font-size: 11px;
+  font-family: var(--font);
+  background: var(--bg-input);
+  border: 1px solid var(--bd);
+  border-radius: var(--r);
+  color: var(--tx-0);
+}
+.pg-password-input:focus {
+  outline: none;
+  border-color: var(--amber);
+}
+
 /* ============================================================
    QUERY EDITOR
    ============================================================ */
@@ -924,10 +964,16 @@ button:focus, input:focus, textarea:focus, select:focus { outline: none; }
 }
 
 .modal h3 {
-  margin: 0 0 16px;
+  margin: 0 0 8px;
   font-size: 13px;
   font-weight: 700;
   color: var(--tx-0);
+}
+
+.modal-subtitle {
+  margin: 0 0 16px;
+  font-size: 12px;
+  color: var(--tx-1);
 }
 
 .modal input {
@@ -1167,6 +1213,7 @@ button:focus, input:focus, textarea:focus, select:focus { outline: none; }
   background: var(--bg-hover);
 }
 .table-preview-page-btn:disabled { opacity: 0.3; cursor: default; }
+.table-preview-page-info { font-size: 11px; color: var(--tx-1); padding: 0 6px; }
 .table-preview-page-active {
   background: var(--amber) !important;
   color: #0d1117 !important;

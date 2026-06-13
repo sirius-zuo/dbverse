@@ -2,11 +2,13 @@ import { useState } from "react";
 
 interface Props {
   defaultName: string;
+  error?: string;
   onSave(name: string): void;
   onSkip(): void;
+  onCancel(): void;
 }
 
-export function SaveConnectionModal({ defaultName, onSave, onSkip }: Props) {
+export function SaveConnectionModal({ defaultName, error, onSave, onSkip, onCancel }: Props) {
   const [name, setName] = useState(defaultName);
 
   return (
@@ -21,9 +23,11 @@ export function SaveConnectionModal({ defaultName, onSave, onSkip }: Props) {
             onChange={(e) => setName(e.target.value)}
           />
         </label>
+        {error && <div className="error-banner">{error}</div>}
         <div className="modal-actions">
           <button onClick={() => onSave(name.trim() || defaultName)}>Save</button>
-          <button onClick={onSkip}>Skip</button>
+          <button onClick={onSkip}>Open without saving</button>
+          <button onClick={onCancel}>Cancel</button>
         </div>
       </div>
     </div>

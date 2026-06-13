@@ -3,6 +3,7 @@ import { appVersion } from "./api/tauri";
 import { listConnections, saveConnection, deleteConnection } from "./api/profiles";
 import type { ConnectionProfile, DatabaseKind, Tab, LanceDbDatasetSchema } from "./api/types";
 import { DbTypePicker } from "./components/DbTypePicker";
+import { PgPasswordModal } from "./components/PgPasswordModal";
 import { Sidebar } from "./components/Sidebar";
 import { WorkspaceArea } from "./components/WorkspaceArea";
 
@@ -12,9 +13,12 @@ export function App() {
   const [activeDbKind, setActiveDbKind] = useState<DatabaseKind | null>(null);
   const [tabs, setTabs] = useState<Tab[]>([]);
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
+  const [pendingOpenPg, setPendingOpenPg] = useState<ConnectionProfile | null>(null);
   const [pendingSave, setPendingSave] = useState<{
     tabId: string;
     profile: ConnectionProfile;
+    password?: string;
+    error?: string;
   } | null>(null);
   const [selectedTable, setSelectedTable] = useState<{ profileId: string; tableName: string } | null>(null);
   const [selectedDataset, setSelectedDataset] = useState<{ profileId: string; datasetName: string } | null>(null);
@@ -48,15 +52,19 @@ export function App() {
     )
   );
 
-  const activeWorkspaceProfile = (
+  const activeWorkspaceTab = (
     tabs.find((t) => t.id === activeTabId && t.type === "workspace") as
       | Extract<Tab, { type: "workspace" }>
       | undefined
-  )?.profile ?? null;
+  ) ?? null;
+
+  const activeWorkspaceProfile = activeWorkspaceTab?.profile ?? null;
 
   // Only show sidebar tree when the active workspace matches the selected type.
   const sidebarActiveProfile =
     activeWorkspaceProfile?.kind === activeDbKind ? activeWorkspaceProfile : null;
+
+  const sidebarSessionPassword = activeWorkspaceTab?.sessionPassword;
 
   function openTab(tab: Tab) {
     setTabs((prev) => (prev.some((t) => t.id === tab.id) ? prev : [...prev, tab]));
@@ -89,7 +97,23 @@ export function App() {
       (t) => t.type === "workspace" && t.profile.id === profile.id
     );
     if (existing) { setActiveTabId(existing.id); return; }
+    if (profile.kind === "postgresql") {
+      setPendingOpenPg(profile);
+      return;
+    }
     openTab({ id: crypto.randomUUID(), type: "workspace", profile, unsaved: false });
+  }
+
+  function handleOpenPgWithPassword(password: string) {
+    if (!pendingOpenPg) return;
+    openTab({
+      id: crypto.randomUUID(),
+      type: "workspace",
+      profile: pendingOpenPg,
+      unsaved: false,
+      sessionPassword: password,
+    });
+    setPendingOpenPg(null);
   }
 
   function handleEdit(profile: ConnectionProfile) {
@@ -101,12 +125,6 @@ export function App() {
   }
 
   async function handleDelete(profile: ConnectionProfile) {
-    if (
-      !window.confirm(
-        `Delete "${profile.displayName}"? This will close its tab if open.`
-      )
-    )
-      return;
     const toClose = tabs
       .filter(
         (t) =>
@@ -123,15 +141,9 @@ export function App() {
     setSavedProfiles(updated);
   }
 
-  function handleConnectNew(tabId: string, profile: ConnectionProfile) {
-    const workspaceTab: Tab = {
-      id: tabId,
-      type: "workspace",
-      profile,
-      unsaved: true,
-    };
-    setTabs((prev) => prev.map((t) => (t.id === tabId ? workspaceTab : t)));
-    setPendingSave({ tabId, profile });
+  function handleConnectNew(tabId: string, profile: ConnectionProfile, password?: string) {
+    // Don't open a workspace yet — wait for the user to choose Save or Skip
+    setPendingSave({ tabId, profile, password });
   }
 
   async function handleConnectEdit(tabId: string, updatedProfile: ConnectionProfile) {
@@ -150,22 +162,45 @@ export function App() {
   }
 
   async function handleSave(tabId: string, name: string) {
-    const tab = tabs.find((t) => t.id === tabId);
-    if (!tab || tab.type !== "workspace") return;
-    const profileToSave: ConnectionProfile = { ...tab.profile, displayName: name };
-    const updated = await saveConnection(profileToSave).catch(() => savedProfiles);
+    if (!pendingSave) return;
+    const { password, profile } = pendingSave;
+    const profileToSave: ConnectionProfile = { ...profile, displayName: name };
+
+    let updated: ConnectionProfile[];
+    try {
+      updated = await saveConnection(profileToSave);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setPendingSave((prev) => (prev ? { ...prev, error: msg } : null));
+      return;
+    }
+
     setSavedProfiles(updated);
     setTabs((prev) =>
       prev.map((t) =>
-        t.id === tabId && t.type === "workspace"
-          ? { ...t, profile: profileToSave, unsaved: false }
+        t.id === tabId
+          ? { id: tabId, type: "workspace", profile: profileToSave, unsaved: false, sessionPassword: password }
           : t
       )
     );
     setPendingSave(null);
   }
 
-  function handleSkipSave(_tabId: string) {
+  function handleSkipSave(tabId: string) {
+    if (!pendingSave) return;
+    const { password, profile } = pendingSave;
+    setTabs((prev) =>
+      prev.map((t) =>
+        t.id === tabId
+          ? { id: tabId, type: "workspace", profile, unsaved: true, sessionPassword: password }
+          : t
+      )
+    );
+    setPendingSave(null);
+  }
+
+  function handleCancelSave() {
+    // Dismiss modal, leave the new-connection form tab open
     setPendingSave(null);
   }
 
@@ -196,6 +231,7 @@ export function App() {
         profiles={sidebarProfiles}
         openProfileIds={openProfileIds}
         activeProfile={sidebarActiveProfile}
+        sessionPassword={sidebarSessionPassword}
         version={version}
         onKindSelect={setActiveDbKind}
         onNew={handleNew}
@@ -207,6 +243,13 @@ export function App() {
         selectedTable={selectedTable}
         selectedDataset={selectedDataset}
       />
+      {pendingOpenPg && (
+        <PgPasswordModal
+          profileName={pendingOpenPg.displayName}
+          onConfirm={handleOpenPgWithPassword}
+          onCancel={() => setPendingOpenPg(null)}
+        />
+      )}
       <WorkspaceArea
         tabs={tabs}
         activeTabId={activeTabId}
@@ -219,6 +262,7 @@ export function App() {
         onConnectEdit={handleConnectEdit}
         onSave={handleSave}
         onSkipSave={handleSkipSave}
+        onCancelSave={handleCancelSave}
         selectedTable={selectedTable}
         selectedDataset={selectedDataset}
         onTablePreviewClose={() => {

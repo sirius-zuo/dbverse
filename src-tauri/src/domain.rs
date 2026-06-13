@@ -29,6 +29,7 @@ pub enum ConnectionConfig {
         port: u16,
         database: String,
         username: String,
+        #[serde(rename = "sslMode")]
         ssl_mode: PostgresSslMode,
     },
     Lancedb { path: String },
@@ -117,4 +118,33 @@ pub struct TableSchema {
     pub columns: Vec<TableColumn>,
     pub indexes: Vec<TableIndex>,
     pub row_count: usize,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn postgres_config_serializes_ssl_mode_as_camel_case() {
+        let config = ConnectionConfig::Postgresql {
+            host: "localhost".to_string(),
+            port: 5432,
+            database: "app".to_string(),
+            username: "admin".to_string(),
+            ssl_mode: PostgresSslMode::Prefer,
+        };
+        let json = serde_json::to_string(&config).unwrap();
+        assert!(json.contains("\"sslMode\""), "expected camelCase sslMode, got: {json}");
+        assert!(!json.contains("\"ssl_mode\""), "snake_case ssl_mode must not appear");
+    }
+
+    #[test]
+    fn postgres_config_deserializes_camel_case_ssl_mode() {
+        let json = r#"{"kind":"postgresql","host":"localhost","port":5432,"database":"app","username":"admin","sslMode":"prefer"}"#;
+        let config: ConnectionConfig = serde_json::from_str(json).unwrap();
+        assert!(matches!(
+            config,
+            ConnectionConfig::Postgresql { ssl_mode: PostgresSslMode::Prefer, .. }
+        ));
+    }
 }

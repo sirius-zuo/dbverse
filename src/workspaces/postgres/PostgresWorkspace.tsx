@@ -1,44 +1,77 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import type { ConnectionProfile, ResultSet } from "../../api/types";
 import { classifyStatement } from "../../api/tauri";
 import { postgresExecuteQuery } from "../../api/postgres";
 import { ResultGrid } from "../../components/ResultGrid";
+import { PgTablePreview } from "./PgTablePreview";
 
 interface PostgresWorkspaceProps {
   profile: ConnectionProfile;
+  initialPassword?: string;
+  selectedTable?: string | null;
+  onTablePreviewClose(): void;
 }
 
-export function PostgresWorkspace({ profile }: PostgresWorkspaceProps) {
-  const [sql, setSql] = useState(
-    "select current_database(), current_schema();"
-  );
-  const [password, setPassword] = useState("");
+// Tauri rejects with a serialized AppError object, not a JS Error instance.
+function extractError(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (typeof error === "object" && error !== null) {
+    const e = error as Record<string, unknown>;
+    const message = typeof e.message === "string" ? e.message : "PostgreSQL query failed.";
+    const details = typeof e.technicalDetails === "string" ? e.technicalDetails : null;
+    return details ? `${message}: ${details}` : message;
+  }
+  return "PostgreSQL query failed.";
+}
+
+export function PostgresWorkspace({ profile, initialPassword, selectedTable, onTablePreviewClose }: PostgresWorkspaceProps) {
+  const [sql, setSql] = useState("select current_database(), current_schema();");
   const [result, setResult] = useState<ResultSet | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [running, setRunning] = useState(false);
+  const [connStatus, setConnStatus] = useState<"testing" | "ok" | "error">("testing");
 
-  async function runQuery() {
+  // Test the connection on mount using whatever password was provided.
+  useEffect(() => {
+    postgresExecuteQuery(profile, initialPassword || null, "SELECT 1")
+      .then(() => setConnStatus("ok"))
+      .catch((err) => {
+        setConnStatus("error");
+        setMessage(extractError(err));
+      });
+  // profile and initialPassword are fixed for the lifetime of this workspace instance.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const runQuery = useCallback(async () => {
     setMessage(null);
-    const classification = await classifyStatement(sql);
-    if (
-      classification.safety === "mutating" ||
-      classification.safety === "ambiguous"
-    ) {
-      const confirmed = window.confirm(
-        `${classification.reason}\n\nRun this PostgreSQL statement anyway?`
-      );
-      if (!confirmed) return;
-    }
-
+    setRunning(true);
     try {
-      setResult(
-        await postgresExecuteQuery(profile, password || null, sql)
-      );
+      const classification = await classifyStatement(sql);
+      if (
+        classification.safety === "mutating" ||
+        classification.safety === "ambiguous"
+      ) {
+        const confirmed = window.confirm(
+          `${classification.reason}\n\nRun this PostgreSQL statement anyway?`
+        );
+        if (!confirmed) return;
+      }
+      const res = await postgresExecuteQuery(profile, initialPassword || null, sql);
+      setResult(res);
+      setConnStatus("ok");
     } catch (error) {
-      setMessage(
-        error instanceof Error ? error.message : "PostgreSQL query failed."
-      );
+      setMessage(extractError(error));
+      setConnStatus("error");
+    } finally {
+      setRunning(false);
     }
-  }
+  }, [profile, initialPassword, sql]);
+
+  const statusLabel =
+    connStatus === "testing" ? "Testing…" :
+    connStatus === "ok" ? "Connected" :
+    "Connection failed";
 
   return (
     <section className="workspace postgres-workspace">
@@ -47,16 +80,11 @@ export function PostgresWorkspace({ profile }: PostgresWorkspaceProps) {
           <h2>PostgreSQL Workspace</h2>
           <p>{profile.displayName}</p>
         </div>
-        <button onClick={runQuery}>Run</button>
+        <div className="pg-header-actions">
+          <span className={`pg-conn-status pg-conn-status-${connStatus}`}>{statusLabel}</span>
+          <button onClick={runQuery} disabled={running}>{running ? "Running…" : "Run"}</button>
+        </div>
       </header>
-      <label className="field-label">
-        Session password
-        <input
-          type="password"
-          value={password}
-          onChange={(event) => setPassword(event.target.value)}
-        />
-      </label>
       <textarea
         className="query-editor"
         value={sql}
@@ -64,6 +92,14 @@ export function PostgresWorkspace({ profile }: PostgresWorkspaceProps) {
       />
       {message ? <div className="error-banner">{message}</div> : null}
       <ResultGrid result={result} />
+      {selectedTable && (
+        <PgTablePreview
+          profile={profile}
+          tableName={selectedTable}
+          password={initialPassword}
+          onClose={onTablePreviewClose}
+        />
+      )}
     </section>
   );
 }
