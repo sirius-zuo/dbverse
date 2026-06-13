@@ -9,6 +9,7 @@ use crate::result_model::ResultSet;
 
 pub mod lancedb;
 pub mod postgres;
+pub mod redis_connector;
 pub mod sqlite;
 
 pub type AppResult<T> = Result<T, AppRuntimeError>;
