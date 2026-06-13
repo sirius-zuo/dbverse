@@ -140,14 +140,25 @@ button:focus, input:focus, textarea:focus, select:focus { outline: none; }
 }
 
 /* ============================================================
-   SIDEBAR HEADER (type dropdown + new btn)
+   SIDEBAR HEADER (type dropdown)
    ============================================================ */
 
 .sidebar-header {
   display: flex;
   align-items: center;
   gap: 6px;
+  margin-bottom: 8px;
+}
+
+/* ============================================================
+   SIDEBAR ACTIONS (new + open buttons)
+   ============================================================ */
+
+.sidebar-actions {
+  display: flex;
+  gap: 6px;
   margin-bottom: 10px;
+  position: relative;
 }
 
 .sidebar-header > h1 {
@@ -241,30 +252,114 @@ button:focus, input:focus, textarea:focus, select:focus { outline: none; }
 .type-dropdown-menu li button:hover { background: var(--bg-hover); }
 
 /* ============================================================
-   CONNECTION LIST
+   OPEN CONNECTIONS DROPDOWN
    ============================================================ */
 
-.connection-actions {
-  display: grid;
-  gap: 5px;
-  margin-bottom: 12px;
-}
-
-.connection-actions button {
+.sidebar-open-btn {
   border: 1px solid var(--bd);
   background: transparent;
   border-radius: var(--r);
-  padding: 6px 10px;
+  padding: 4px 9px;
+  cursor: pointer;
+  white-space: nowrap;
+  color: var(--tx-1);
+  font-size: 12px;
+  transition: border-color 0.1s, color 0.1s;
+}
+.sidebar-open-btn:hover {
+  border-color: var(--amber);
+  color: var(--amber);
+}
+
+.open-connections {
+}
+
+.open-connections-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  background: var(--bg-overlay);
+  border: 1px solid var(--bd-hi);
+  border-radius: var(--r);
+  padding: 4px 0;
+  margin: 0;
+  list-style: none;
+  z-index: 10;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  min-width: 200px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.open-connections-empty {
+  padding: 8px 14px;
+  color: var(--tx-2);
+  font-size: 12px;
+  font-style: italic;
+}
+
+.open-connections-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+}
+
+.open-connections-item-btn {
+  flex: 1;
+  border: 0;
+  background: transparent;
+  padding: 7px 14px;
   text-align: left;
   cursor: pointer;
   color: var(--tx-0);
   font-size: 12px;
-  transition: border-color 0.1s, background 0.1s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: background 0.1s;
 }
-.connection-actions button:hover {
+.open-connections-item-btn:hover {
   background: var(--bg-hover);
-  border-color: var(--bd-hi);
 }
+
+.open-connections-item-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.open-connections-item-dot {
+  color: var(--green);
+  font-size: 8px;
+  flex-shrink: 0;
+}
+
+.open-connections-item-active .open-connections-item-btn {
+  color: var(--amber);
+}
+
+.open-connections-item-edit,
+.open-connections-item-delete {
+  border: 0;
+  background: transparent;
+  padding: 4px 8px;
+  cursor: pointer;
+  color: var(--tx-2);
+  font-size: 12px;
+  transition: color 0.1s;
+}
+.open-connections-item-edit:hover {
+  color: var(--blue);
+}
+.open-connections-item-delete:hover {
+  color: var(--red);
+}
+
+/* ============================================================
+   CONNECTION LIST (legacy - kept for context-menu compatibility)
+   ============================================================ */
 
 .connection-list {
   display: flex;
@@ -290,20 +385,16 @@ button:focus, input:focus, textarea:focus, select:focus { outline: none; }
   background: var(--bg-hover);
   border-color: var(--bd-hi);
 }
-.connection.active {
-  border-color: var(--amber);
-  background: var(--amber-bg);
-}
-
-.connection small {
-  color: var(--tx-1);
-  font-size: 11px;
-}
 
 .connection-open-dot {
   margin-left: auto;
   color: var(--green);
   font-size: 8px;
+}
+
+.empty-state {
+  color: var(--tx-1);
+  font-size: 12px;
 }
 
 .empty-state {

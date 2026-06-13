@@ -1,6 +1,6 @@
+import { useState } from "react";
 import type { ConnectionProfile, DatabaseKind, TableSchema, TableSelection, LanceDbDatasetSchema, DatasetSelection } from "../api/types";
 import { TypeDropdown } from "./TypeDropdown";
-import { ConnectionList } from "./ConnectionList";
 import { SidebarTree } from "./SidebarTree";
 import { ThemeToggle } from "./ThemeToggle";
 
@@ -37,6 +37,26 @@ export function Sidebar({
   selectedTable,
   selectedDataset,
 }: Props) {
+  const [openMenu, setOpenMenu] = useState(false);
+
+  function handleOpen(profile: ConnectionProfile) {
+    onOpen(profile);
+    setOpenMenu(false);
+  }
+
+  function handleEdit(profile: ConnectionProfile) {
+    onEdit(profile);
+    setOpenMenu(false);
+  }
+
+  function handleDelete(profile: ConnectionProfile) {
+    onDelete(profile);
+    setOpenMenu(false);
+  }
+
+  function closeMenu() {
+    setOpenMenu(false);
+  }
 
   return (
     <aside className="app-sidebar">
@@ -46,15 +66,58 @@ export function Sidebar({
       </div>
       <div className="sidebar-header">
         <TypeDropdown activeKind={activeKind} onSelect={onKindSelect} />
-        <button className="sidebar-new-btn" onClick={onNew}>+ New</button>
       </div>
-      <ConnectionList
-        profiles={profiles}
-        openProfileIds={openProfileIds}
-        onOpen={onOpen}
-        onEdit={onEdit}
-        onDelete={onDelete}
-      />
+      <div className="sidebar-actions">
+        <button className="sidebar-new-btn" onClick={onNew}>+ New</button>
+        <div className="open-connections">
+          <button
+            className="sidebar-open-btn"
+            onClick={() => setOpenMenu((o) => !o)}
+          >
+            Open...
+          </button>
+          {openMenu && (
+            <ul
+              className="open-connections-menu"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {profiles.length === 0 && (
+                <li className="open-connections-empty">No saved connections</li>
+              )}
+              {profiles.map((profile) => (
+                <li
+                  key={profile.id}
+                  className={`open-connections-item ${openProfileIds.has(profile.id) ? "open-connections-item-active" : ""}`}
+                >
+                  <button
+                    className="open-connections-item-btn"
+                    onClick={() => handleOpen(profile)}
+                  >
+                    <span className="open-connections-item-name">{profile.displayName}</span>
+                    {openProfileIds.has(profile.id) && (
+                      <span className="open-connections-item-dot" title="Open">●</span>
+                    )}
+                  </button>
+                  <button
+                    className="open-connections-item-edit"
+                    onClick={() => handleEdit(profile)}
+                    title="Edit"
+                  >
+                    ✎
+                  </button>
+                  <button
+                    className="open-connections-item-delete"
+                    onClick={() => handleDelete(profile)}
+                    title="Delete"
+                  >
+                    ✕
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
       {activeProfile && (
         <div className="sidebar-tree-container">
           <h3 className="sidebar-tree-title">{activeProfile.displayName}</h3>
