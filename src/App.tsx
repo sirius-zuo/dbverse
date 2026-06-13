@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { appVersion } from "./api/tauri";
 import { listConnections, saveConnection, deleteConnection } from "./api/profiles";
-import type { ConnectionProfile, DatabaseKind, TableSchema, Tab, LanceDbDatasetSchema, DatasetSelection } from "./api/types";
+import type { ConnectionProfile, DatabaseKind, Tab, LanceDbDatasetSchema } from "./api/types";
 import { DbTypePicker } from "./components/DbTypePicker";
 import { Sidebar } from "./components/Sidebar";
 import { WorkspaceArea } from "./components/WorkspaceArea";
@@ -24,6 +24,14 @@ export function App() {
     void listConnections().then(setSavedProfiles).catch(() => setSavedProfiles([]));
   }, []);
 
+  // Sync the type dropdown whenever the active tab becomes a workspace.
+  useEffect(() => {
+    const activeTab = tabs.find((t) => t.id === activeTabId);
+    if (activeTab?.type === "workspace") {
+      setActiveDbKind(activeTab.profile.kind);
+    }
+  }, [activeTabId, tabs]);
+
   const sidebarProfiles = activeDbKind
     ? savedProfiles.filter((p) => p.kind === activeDbKind)
     : [];
@@ -39,6 +47,10 @@ export function App() {
       | Extract<Tab, { type: "workspace" }>
       | undefined
   )?.profile ?? null;
+
+  // Only show sidebar tree when the active workspace matches the selected type.
+  const sidebarActiveProfile =
+    activeWorkspaceProfile?.kind === activeDbKind ? activeWorkspaceProfile : null;
 
   function openTab(tab: Tab) {
     setTabs((prev) => (prev.some((t) => t.id === tab.id) ? prev : [...prev, tab]));
@@ -177,7 +189,7 @@ export function App() {
         activeKind={activeDbKind}
         profiles={sidebarProfiles}
         openProfileIds={openProfileIds}
-        activeProfile={activeWorkspaceProfile}
+        activeProfile={sidebarActiveProfile}
         version={version}
         onKindSelect={setActiveDbKind}
         onNew={handleNew}
