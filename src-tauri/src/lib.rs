@@ -20,6 +20,7 @@ use query_safety::{classify_sql, StatementClassification};
 use sqlite_schema::{get_table_page, get_table_schema, list_indexes, list_tables, list_views};
 use sqlite_schema::{FilterOp, ColumnFilter};
 use sqlite_schema::{sqlite_get_table_page_sorted as sqlite_schema_get_table_page_sorted, sqlite_get_total_rows as sqlite_schema_get_total_rows};
+use redis_model::{RedisScanResult, RedisKeyInfo, RedisResponse};
 
 #[tauri::command]
 fn select_file() -> Result<Option<String>, AppRuntimeError> {
@@ -392,6 +393,43 @@ fn sqlite_get_total_rows(path: String, table: String) -> Result<i64, AppRuntimeE
     })
 }
 
+#[tauri::command]
+async fn redis_execute_command(
+    profile: domain::ConnectionProfile,
+    password: Option<String>,
+    command: String,
+) -> Result<RedisResponse, AppRuntimeError> {
+    connectors::redis_connector::execute_redis_command(&profile, password.as_deref(), &command)
+        .await
+}
+
+#[tauri::command]
+async fn redis_scan_keys(
+    profile: domain::ConnectionProfile,
+    password: Option<String>,
+    pattern: String,
+    cursor: u64,
+    count: u32,
+) -> Result<RedisScanResult, AppRuntimeError> {
+    connectors::redis_connector::scan_redis_keys(
+        &profile,
+        password.as_deref(),
+        &pattern,
+        cursor,
+        count,
+    )
+    .await
+}
+
+#[tauri::command]
+async fn redis_get_key(
+    profile: domain::ConnectionProfile,
+    password: Option<String>,
+    key: String,
+) -> Result<RedisKeyInfo, AppRuntimeError> {
+    connectors::redis_connector::get_redis_key(&profile, password.as_deref(), &key).await
+}
+
 pub fn run() {
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
@@ -415,7 +453,10 @@ pub fn run() {
             embed_text_openai,
             search_lancedb,
             lancedb_list_datasets,
-            lancedb_query_dataset
+            lancedb_query_dataset,
+            redis_execute_command,
+            redis_scan_keys,
+            redis_get_key
         ])
         .run(tauri::generate_context!())
         .expect("failed to run dbverse");
