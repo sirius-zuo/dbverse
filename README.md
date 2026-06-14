@@ -1,12 +1,14 @@
 # dbverse
 
-A fast, cross-platform desktop database explorer built with Rust and Tauri. Connect to SQLite, PostgreSQL, and LanceDB (vector embeddings) from a single unified interface.
+A fast, cross-platform desktop database explorer built with Rust and Tauri. Connect to SQLite, PostgreSQL, LanceDB (vector embeddings), and Redis from a single unified interface.
 
 ## Features
 
-- **Multi-database support** — SQLite (file-based), PostgreSQL (server-based), and LanceDB (vector search)
+- **Multi-database support** — SQLite (file-based), PostgreSQL (server-based), LanceDB (vector search), and Redis (in-memory key-value)
 - **SQL safety guards** — Automatic statement classification (read-only, mutating, ambiguous) before execution
 - **Vector search** — Embed natural language queries with OpenAI and search LanceDB with nearest-neighbor indexing
+- **Redis browser** — Namespace tree sidebar, key preview for all data types (string, hash, list, set, zset, stream), TTL display, and command editor
+- **Table browsing** — Paginated data preview with sort, column filter, and global search for SQLite tables
 - **Connection profiles** — Save and manage database connections locally with JSON persistence
 - **Cross-platform** — macOS, Windows, and Linux via Tauri
 - **Shared connector trait** — Extend with new databases by implementing a single Rust trait
@@ -17,7 +19,7 @@ A fast, cross-platform desktop database explorer built with Rust and Tauri. Conn
 |-------|-----------|
 | **Backend** | Rust, Tauri 2, tokio, serde, thiserror, async-trait |
 | **Frontend** | React 18, TypeScript 5, Vite 5, Vitest |
-| **Databases** | SQLite (rusqlite), PostgreSQL (tokio-postgres), LanceDB (lancedb SDK) |
+| **Databases** | SQLite (rusqlite), PostgreSQL (tokio-postgres), LanceDB (lancedb SDK), Redis (redis 0.27) |
 
 ## Getting Started
 
@@ -66,20 +68,27 @@ cargo test                 # Rust unit tests only
 │   │   ├── domain.rs       # Shared types (DatabaseKind, ConnectionProfile)
 │   │   ├── errors.rs       # Error model (AppError, AppErrorCategory)
 │   │   ├── result_model.rs # Query result model (ResultSet, Value)
+│   │   ├── redis_model.rs  # Redis response/key types (RedisResponse, RedisKeyInfo)
 │   │   ├── query_safety.rs # SQL statement classifier
 │   │   ├── embeddings.rs   # OpenAI embedding provider
 │   │   ├── profiles.rs     # Connection profile catalog (JSON persistence)
+│   │   ├── sqlite_schema.rs# SQLite schema helpers (tables, views, indexes, pagination)
 │   │   └── connectors/     # Database connectors
 │   │       ├── mod.rs      # DatabaseConnector trait + ConnectorRegistry
 │   │       ├── sqlite.rs   # SQLite connector (query, schema, entity preview)
 │   │       ├── postgres.rs # PostgreSQL connector (async query)
-│   │       └── lancedb.rs  # LanceDB connector (vector search)
+│   │       ├── lancedb.rs  # LanceDB connector (vector search)
+│   │       └── redis_connector.rs # Redis connector (SCAN, key fetch, command exec)
 │   ├── Cargo.toml
 │   └── tauri.conf.json
 ├── src/                    # React frontend
 │   ├── api/                # Tauri command wrappers + TypeScript contracts
 │   ├── components/         # Shared UI primitives
 │   ├── workspaces/         # Database-specific workspaces
+│   │   ├── sqlite/         # SQLite workspace + browse tests
+│   │   ├── postgres/       # PostgreSQL workspace
+│   │   ├── lancedb/        # LanceDB workspace
+│   │   └── redis/          # Redis workspace, result view, key preview
 │   ├── App.tsx             # Shell layout (sidebar + workspace)
 │   └── main.tsx            # Entry point
 └── docs/                   # Development guides and plans
@@ -88,43 +97,46 @@ cargo test                 # Rust unit tests only
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────┐
-│                     React Frontend                   │
-│  ┌──────────────┐  ┌──────────────┐  ┌───────────┐ │
-│  │ ConnectionMgr│  │ ResultGrid   │  │ ObjectTree│ │
-│  └──────────────┘  └──────────────┘  └───────────┘ │
-│  ┌───────────────────────────────────────────────┐  │
-│  │           Workspace Router                     │  │
-│  │  ┌──────────┐  ┌──────────┐  ┌────────────┐  │  │
-│  │  │ SQLite   │  │ Postgres │  │ LanceDB    │  │  │
-│  │  │ Workspace│  │ Workspace│  │ Workspace  │  │  │
-│  │  └──────────┘  └──────────┘  └────────────┘  │  │
-│  └───────────────────────────────────────────────┘  │
-├─────────────────────────────────────────────────────┤
-│                   Tauri Commands                     │
-│  classifyStatement  │  listConnections  │  embedText │
-│  sqliteExecuteFile  │  postgresExecute  │  searchLance│
-├─────────────────────────────────────────────────────┤
-│                     Rust Backend                     │
-│  ┌──────────────┐  ┌──────────────┐  ┌───────────┐ │
-│  │ Domain Types │  │ Error Model  │  │Profiles   │ │
-│  └──────────────┘  └──────────────┘  └───────────┘ │
-│  ┌──────────────┐  ┌──────────────┐  ┌───────────┐ │
-│  │ SQLite Conn  │  │ Postgres Conn│  │LanceDB    │ │
-│  └──────────────┘  └──────────────┘  │ Connector │ │
-│  ┌──────────────┐  ┌──────────────┐  └───────────┘ │
-│  │ SQL Safety   │  │ Embeddings   │                 │
-│  └──────────────┘  └──────────────┘                 │
-└─────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│                        React Frontend                         │
+│  ┌──────────────┐  ┌──────────────┐  ┌────────────────────┐ │
+│  │ ConnectionMgr│  │ ResultGrid   │  │ SidebarTree        │ │
+│  └──────────────┘  └──────────────┘  │ (namespace browser)│ │
+│  ┌────────────────────────────────┐   └────────────────────┘ │
+│  │        Workspace Router        │                           │
+│  │  ┌────────┐ ┌────────┐        │                           │
+│  │  │ SQLite │ │Postgres│        │                           │
+│  │  ├────────┤ ├────────┤        │                           │
+│  │  │LanceDB │ │ Redis  │        │                           │
+│  │  └────────┘ └────────┘        │                           │
+│  └────────────────────────────────┘                           │
+├──────────────────────────────────────────────────────────────┤
+│                      Tauri Commands                           │
+│  classifyStatement  │ listConnections  │ embedText            │
+│  sqliteExecuteFile  │ postgresExecute  │ searchLanceDB        │
+│  redisScanKeys      │ redisGetKey      │ redisExecuteCommand  │
+├──────────────────────────────────────────────────────────────┤
+│                       Rust Backend                            │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐       │
+│  │ Domain Types │  │ Error Model  │  │ Profiles     │       │
+│  └──────────────┘  └──────────────┘  └──────────────┘       │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐       │
+│  │ SQLite Conn  │  │Postgres Conn │  │ LanceDB Conn │       │
+│  └──────────────┘  └──────────────┘  └──────────────┘       │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐       │
+│  │ Redis Conn   │  │ SQL Safety   │  │ Embeddings   │       │
+│  └──────────────┘  └──────────────┘  └──────────────┘       │
+└──────────────────────────────────────────────────────────────┘
 ```
 
 ## Supported Databases
 
 | Database | Connector | Features |
 |----------|-----------|----------|
-| **SQLite** | `rusqlite` | Query execution, schema discovery, table/index listing, entity preview |
+| **SQLite** | `rusqlite` | Query execution, schema discovery, paginated table/view browsing with sort and filter |
 | **PostgreSQL** | `tokio-postgres` | Async query execution, schema discovery, SSL support |
-| **LanceDB** | `lancedb` | Vector search with nearest-neighbor, OpenAI embedding integration |
+| **LanceDB** | `lancedb` | Vector search with nearest-neighbor, OpenAI embedding integration, dataset browser |
+| **Redis** | `redis 0.27` | Key browser with namespace tree, all data types (string/hash/list/set/zset/stream), TTL, command editor |
 
 ## Extending dbverse
 
@@ -135,10 +147,10 @@ Adding a new database requires two things:
 
 ## Testing
 
-dbverse maintains 27 tests across Rust and TypeScript:
+dbverse maintains 48+ tests across Rust and TypeScript:
 
-- **22 Rust unit tests** — connectors, profiles, error handling, query safety, embeddings
-- **5 frontend tests** — type synchronization, workspace routing smoke tests
+- **48 Rust unit tests** — connectors, profiles, error handling, query safety, embeddings, SQLite schema, Redis URL builder
+- **30+ frontend tests** — type synchronization, workspace routing, SidebarTree, TablePreview, RedisResultView, RedisKeyPreview
 
 Run all tests at once:
 
