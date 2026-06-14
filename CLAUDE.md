@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-dbverse is a desktop database explorer built with **Rust + Tauri 2 + React + TypeScript**. It supports SQLite, PostgreSQL, and LanceDB (vector embeddings) with a shared connector trait and typed domain contracts.
+dbverse is a desktop database explorer built with **Rust + Tauri 2 + React + TypeScript**. It supports SQLite, PostgreSQL, LanceDB (vector embeddings), and Redis (key-value) with a shared connector trait and typed domain contracts.
 
 ### Tech Stack
 
@@ -20,7 +20,8 @@ src-tauri/         ← Rust backend
   result_model.rs  ← ResultSet, Value, ResultColumn, ResultMetadata
   query_safety.rs  ← SQL statement classifier (readOnly / mutating / ambiguous / empty)
   embeddings.rs    ← OpenAI embedding provider
-  connectors/      ← DatabaseConnector trait + ConnectorRegistry + SQLite/PostgreSQL/LanceDB implementations
+  redis_model.rs   ← Redis response/key types (RedisResponse, RedisKeyInfo, RedisScanResult)
+  connectors/      ← DatabaseConnector trait + ConnectorRegistry + SQLite/PostgreSQL/LanceDB/Redis implementations
   main.rs          ← Tauri entry point
   build.rs         ← Tauri build script
 
@@ -35,9 +36,11 @@ src/               ← React frontend
   api/profiles.ts  ← Connection profile API
   api/sqlite.ts    ← SQLite query API
   api/postgres.ts  ← PostgreSQL query API
+  api/redis.ts     ← Redis invoke wrappers (scan, getKey, executeCommand)
   components/      ← Shared UI primitives (ConnectionManager, WorkspaceRouter, ResultGrid, ObjectTree, SidebarTree, TablePreview, ThemeToggle)
-  workspaces/      ← Database-specific workspaces (SQLite, PostgreSQL, LanceDB)
+  workspaces/      ← Database-specific workspaces (SQLite, PostgreSQL, LanceDB, Redis)
   workspaces/sqlite/  ← SQLite-specific workspace and browse tests
+  workspaces/redis/   ← RedisWorkspace, RedisResultView, RedisKeyPreview
   styles.css       ← Base styles
 ```
 
@@ -54,13 +57,14 @@ src/               ← React frontend
 | 5 — LanceDB, Embeddings, Workspace | [Plan](docs/superpowers/plans/2026-06-07-dbverse-part-5-lancedb-embeddings.md) | ✅ Done (merged PR #5) |
 | 6 — Integration, E2E, Packaging | [Plan](docs/superpowers/plans/2026-06-07-dbverse-part-6-integration-packaging.md) | ✅ Done (merged PR #6) |
 | 7 — Table Browsing & LanceDB Datasets | [Plan](docs/superpowers/plans/2026-06-08-table-browsing-part1-sqlite.md) | ✅ Done (merged PR #8) |
+| 8 — Redis Connector & Workspace | [Design](docs/superpowers/specs/2026-06-12-redis-support-design.md) · [Plan](docs/superpowers/plans/2026-06-12-redis-support.md) | ✅ Done (merged PR #9) |
 
-**All 7 parts complete.** Project has full table browsing (SQLite sidebar tree + paginated data preview), LanceDB dataset browsing, result grid with cell highlighting and right-click copy, theme toggle, and SQLite schema helper module.
+**All 8 parts complete.** Project has full table browsing (SQLite sidebar tree + paginated data preview), LanceDB dataset browsing, Redis key browser with namespace tree and all data types, result grid with cell highlighting and right-click copy, theme toggle, and SQLite schema helper module.
 
 ## Test Counts
 
-- **36+ Rust unit tests** — connectors, profiles, errors, query safety, embeddings, SQLite schema
-- **~30 frontend tests** — type tests, workspace smokes, SidebarTree, TablePreview, SQLite browse
+- **48 Rust unit tests** — connectors, profiles, errors, query safety, embeddings, SQLite schema, Redis URL builder
+- **30+ frontend tests** — type tests, workspace smokes, SidebarTree, TablePreview, SQLite browse, RedisResultView, RedisKeyPreview
 - **Unified check:** `npm run check` (Vitest + TSC build + Cargo tests)
 
 ## Key Contracts (do not change without coordination)
@@ -73,7 +77,13 @@ src/               ← React frontend
 - **`src-tauri/src/query_safety.rs`** — `classify_sql()` with `StatementSafety` enum
 - **`src-tauri/src/embeddings.rs`** — `EmbeddingProviderProfile`, `embed_with_openai()`
 - **`src-tauri/src/connectors/lancedb.rs`** — `lancedb_list_datasets`, `lancedb_query_dataset`, `lancedb_search_vectors`
-- **`src/components/SidebarTree.tsx`** — Expandable sidebar tree with tables/views/indexes/datasets
+- **`src-tauri/src/redis_model.rs`** — `RedisResponse`, `RedisKeyType`, `RedisKeyValue`, `RedisKeyInfo`, `RedisScanResult`
+- **`src-tauri/src/connectors/redis_connector.rs`** — `build_redis_url`, `execute_redis_command`, `scan_redis_keys`, `get_redis_key`
+- **`src/workspaces/redis/RedisWorkspace.tsx`** — PING on mount, command editor, result/key-preview toggle
+- **`src/workspaces/redis/RedisResultView.tsx`** — Recursive renderer for all `RedisResponse` variants
+- **`src/workspaces/redis/RedisKeyPreview.tsx`** — Type-aware key detail panel with TTL
+- **`src/api/redis.ts`** — Tauri invoke wrappers for Redis commands
+- **`src/components/SidebarTree.tsx`** — Expandable sidebar tree with tables/views/indexes/datasets/Redis namespace tree
 - **`src/components/TablePreview.tsx`** — Paginated data preview with schema bar, sort/filter toolbar
 - **`src/components/ResultGrid.tsx`** — Data grid with cell highlighting and right-click copy
 - **`src/api/types.ts`** — TypeScript mirror of Rust types
