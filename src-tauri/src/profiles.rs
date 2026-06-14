@@ -24,6 +24,11 @@ pub fn validate_profile(profile: &ConnectionProfile) -> Result<(), AppRuntimeErr
         {
             Ok(())
         }
+        (DatabaseKind::Redis, ConnectionConfig::Redis { host, port, .. })
+            if !host.trim().is_empty() && *port > 0 =>
+        {
+            Ok(())
+        }
         _ => Err(AppRuntimeError::User(AppError {
             category: AppErrorCategory::QueryError,
             message: "Connection profile is incomplete or does not match its database kind."
