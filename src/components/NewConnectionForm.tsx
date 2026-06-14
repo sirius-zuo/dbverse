@@ -129,7 +129,7 @@ export function NewConnectionForm({ kind, initialProfile, onConnect, onCancel }:
     if (!profile) return;
     const password =
       kind === "postgresql" ? pgPassword || undefined :
-      kind === "redis" ? redisPassword || undefined :
+      kind === "redis" ? redisPassword :
       undefined;
     onConnect(profile, password);
   }
