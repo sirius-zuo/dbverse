@@ -1,4 +1,4 @@
-use arrow_array::{Array, BooleanArray, Float32Array, Float64Array, Int32Array, Int64Array, RecordBatch, StringArray, UInt32Array, UInt64Array};
+use arrow_array::{Array, BooleanArray, FixedSizeListArray, Float32Array, Float64Array, Int32Array, Int64Array, RecordBatch, StringArray, UInt32Array, UInt64Array};
 use arrow_schema::DataType;
 use futures::TryStreamExt;
 use lancedb::query::{ExecutableQuery, QueryBase};
@@ -247,6 +247,18 @@ fn arrow_value_to_result_value(array: &dyn Array, row_index: usize) -> Value {
             if let Some(arr) = array.as_any().downcast_ref::<BooleanArray>() {
                 return Value::Boolean(arr.value(row_index));
             }
+            Value::DatabaseSpecific(format!("{:?}", array.slice(row_index, 1)))
+        }
+        DataType::FixedSizeList(_, _) => {
+            if let Some(list_arr) = array.as_any().downcast_ref::<FixedSizeListArray>() {
+                let inner = list_arr.value(row_index);
+                if let Some(float_arr) = inner.as_any().downcast_ref::<Float32Array>() {
+                    return Value::Vector(float_arr.values().to_vec());
+                }
+            }
+            Value::DatabaseSpecific(format!("{:?}", array.slice(row_index, 1)))
+        }
+        DataType::LargeList(_) => {
             Value::DatabaseSpecific(format!("{:?}", array.slice(row_index, 1)))
         }
         _ => Value::DatabaseSpecific(format!("{:?}", array.slice(row_index, 1))),
