@@ -33,4 +33,5 @@ uuid = { version = "1", features = ["v4", "serde"] }
 rusqlite = { version = "0.32", features = ["bundled"] }
 lancedb = "0.30"
 arrow-array = "58"
+arrow-schema = "58"
 futures = "0.3"

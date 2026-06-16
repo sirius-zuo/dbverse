@@ -1,4 +1,5 @@
-use arrow_array::{Array, RecordBatch};
+use arrow_array::{Array, BooleanArray, Float32Array, Float64Array, Int32Array, Int64Array, RecordBatch, StringArray, UInt32Array, UInt64Array};
+use arrow_schema::DataType;
 use futures::TryStreamExt;
 use lancedb::query::{ExecutableQuery, QueryBase};
 use serde::{Deserialize, Serialize};
@@ -199,5 +200,55 @@ fn arrow_value_to_result_value(array: &dyn Array, row_index: usize) -> Value {
         return Value::Null;
     }
 
-    Value::DatabaseSpecific(format!("{:?}", array.slice(row_index, 1)))
+    match array.data_type() {
+        DataType::LargeUtf8 | DataType::Utf8 => {
+            if let Some(str_arr) = array.as_any().downcast_ref::<StringArray>() {
+                return Value::Text(str_arr.value(row_index).to_string());
+            }
+            Value::DatabaseSpecific(format!("{:?}", array.slice(row_index, 1)))
+        }
+        DataType::Float32 => {
+            if let Some(arr) = array.as_any().downcast_ref::<Float32Array>() {
+                return Value::Float(arr.value(row_index) as f64);
+            }
+            Value::DatabaseSpecific(format!("{:?}", array.slice(row_index, 1)))
+        }
+        DataType::Float64 => {
+            if let Some(arr) = array.as_any().downcast_ref::<Float64Array>() {
+                return Value::Float(arr.value(row_index));
+            }
+            Value::DatabaseSpecific(format!("{:?}", array.slice(row_index, 1)))
+        }
+        DataType::Int32 => {
+            if let Some(arr) = array.as_any().downcast_ref::<Int32Array>() {
+                return Value::Integer(arr.value(row_index) as i64);
+            }
+            Value::DatabaseSpecific(format!("{:?}", array.slice(row_index, 1)))
+        }
+        DataType::Int64 => {
+            if let Some(arr) = array.as_any().downcast_ref::<Int64Array>() {
+                return Value::Integer(arr.value(row_index));
+            }
+            Value::DatabaseSpecific(format!("{:?}", array.slice(row_index, 1)))
+        }
+        DataType::UInt32 => {
+            if let Some(arr) = array.as_any().downcast_ref::<UInt32Array>() {
+                return Value::Integer(arr.value(row_index) as i64);
+            }
+            Value::DatabaseSpecific(format!("{:?}", array.slice(row_index, 1)))
+        }
+        DataType::UInt64 => {
+            if let Some(arr) = array.as_any().downcast_ref::<UInt64Array>() {
+                return Value::Integer(arr.value(row_index) as i64);
+            }
+            Value::DatabaseSpecific(format!("{:?}", array.slice(row_index, 1)))
+        }
+        DataType::Boolean => {
+            if let Some(arr) = array.as_any().downcast_ref::<BooleanArray>() {
+                return Value::Boolean(arr.value(row_index));
+            }
+            Value::DatabaseSpecific(format!("{:?}", array.slice(row_index, 1)))
+        }
+        _ => Value::DatabaseSpecific(format!("{:?}", array.slice(row_index, 1))),
+    }
 }
