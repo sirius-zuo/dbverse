@@ -9,6 +9,7 @@ import {
 import { listLanceDbDatasets, queryLanceDbDataset } from "../api/lancedb";
 import { postgresExecuteQuery } from "../api/postgres";
 import { redisScanKeys } from "../api/redis";
+import { neo4jListLabels, neo4jListRelationshipTypes } from "../api/neo4j";
 
 export interface NamespaceNode {
   label: string;
@@ -42,6 +43,7 @@ interface SidebarTreeProps {
   onTableSelect(tableId: string, schema: TableSchema): void;
   onDatasetSelect(datasetId: string, schema: LanceDbDatasetSchema): void;
   onRedisKeySelect(key: string): void;
+  onNeo4jQuerySelect(cypher: string): void;
 }
 
 interface TreeGroup {
@@ -80,6 +82,7 @@ export function SidebarTree({
   onTableSelect,
   onDatasetSelect,
   onRedisKeySelect,
+  onNeo4jQuerySelect,
 }: SidebarTreeProps) {
   const [sqliteGroups, setSqliteGroups] = useState<TreeGroup[]>([]);
   const [sqliteLoading, setSqliteLoading] = useState(true);
@@ -103,6 +106,13 @@ export function SidebarTree({
   const [redisError, setRedisError] = useState<string | null>(null);
   const [redisNextCursor, setRedisNextCursor] = useState<number>(0);
   const [redisLoadingMore, setRedisLoadingMore] = useState(false);
+  const isNeo4j = profile.config.kind === "neo4j";
+  const [neo4jLabels, setNeo4jLabels] = useState<string[]>([]);
+  const [neo4jLabelsLoading, setNeo4jLabelsLoading] = useState(true);
+  const [neo4jLabelsError, setNeo4jLabelsError] = useState<string | null>(null);
+  const [neo4jRelTypes, setNeo4jRelTypes] = useState<string[]>([]);
+  const [neo4jRelTypesLoading, setNeo4jRelTypesLoading] = useState(true);
+  const [neo4jRelTypesError, setNeo4jRelTypesError] = useState<string | null>(null);
 
   // Load SQLite tree
   useEffect(() => {
@@ -280,6 +290,54 @@ export function SidebarTree({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isRedis, profile.id, sessionPassword]);
 
+  // Load Neo4j labels and relationship types independently, so a failure in
+  // one does not block the other (each tracks its own loading/error state).
+  useEffect(() => {
+    if (!isNeo4j || sessionPassword === undefined) {
+      setNeo4jLabels([]);
+      setNeo4jLabelsLoading(false);
+      setNeo4jLabelsError(null);
+      setNeo4jRelTypes([]);
+      setNeo4jRelTypesLoading(false);
+      setNeo4jRelTypesError(null);
+      return;
+    }
+    let cancelled = false;
+
+    setNeo4jLabelsLoading(true);
+    setNeo4jLabelsError(null);
+    neo4jListLabels(profile, sessionPassword || null)
+      .then((labels) => { if (!cancelled) setNeo4jLabels(labels); })
+      .catch((err) => {
+        if (!cancelled) {
+          setNeo4jLabelsError(
+            typeof err === "object" && err !== null && "message" in err
+              ? String((err as Record<string, unknown>).message)
+              : "Failed to load labels"
+          );
+        }
+      })
+      .finally(() => { if (!cancelled) setNeo4jLabelsLoading(false); });
+
+    setNeo4jRelTypesLoading(true);
+    setNeo4jRelTypesError(null);
+    neo4jListRelationshipTypes(profile, sessionPassword || null)
+      .then((types) => { if (!cancelled) setNeo4jRelTypes(types); })
+      .catch((err) => {
+        if (!cancelled) {
+          setNeo4jRelTypesError(
+            typeof err === "object" && err !== null && "message" in err
+              ? String((err as Record<string, unknown>).message)
+              : "Failed to load relationship types"
+          );
+        }
+      })
+      .finally(() => { if (!cancelled) setNeo4jRelTypesLoading(false); });
+
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isNeo4j, profile.id, sessionPassword]);
+
   // Show loading for the active database type only
   if (
     (sqlitePath && sqliteLoading) ||
@@ -380,8 +438,31 @@ export function SidebarTree({
         </div>
       )}
 
+      {/* Neo4j labels and relationship types */}
+      {isNeo4j && sessionPassword === undefined && (
+        <div className="sidebar-tree-empty">Open connection to browse labels</div>
+      )}
+      {isNeo4j && sessionPassword !== undefined && (
+        <>
+          <Neo4jGroup
+            title="Labels"
+            loading={neo4jLabelsLoading}
+            error={neo4jLabelsError}
+            items={neo4jLabels}
+            onItemSelect={(label) => onNeo4jQuerySelect(`MATCH (n:${label}) RETURN n LIMIT 50`)}
+          />
+          <Neo4jGroup
+            title="Relationship Types"
+            loading={neo4jRelTypesLoading}
+            error={neo4jRelTypesError}
+            items={neo4jRelTypes}
+            onItemSelect={(type) => onNeo4jQuerySelect(`MATCH (a)-[r:${type}]->(b) RETURN a, r, b LIMIT 50`)}
+          />
+        </>
+      )}
+
       {/* Empty state */}
-      {!isRedis && sqliteGroups.length === 0 && datasets.length === 0 && pgEntries.length === 0 && (
+      {!isRedis && !isNeo4j && sqliteGroups.length === 0 && datasets.length === 0 && pgEntries.length === 0 && (
         <div className="sidebar-tree-empty">
           {isPg && sessionPassword === undefined ? "Open connection to browse tables" : "No tables found"}
         </div>
@@ -417,6 +498,44 @@ function PgEntryGroup({
               onClick={() => onEntrySelect(entry)}
             >
               {entry.name}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Neo4jGroup({
+  title,
+  loading,
+  error,
+  items,
+  onItemSelect,
+}: {
+  title: string;
+  loading: boolean;
+  error: string | null;
+  items: string[];
+  onItemSelect(item: string): void;
+}) {
+  const [expanded, setExpanded] = useState(true);
+  return (
+    <div className="tree-group">
+      <button className="tree-group-header" onClick={() => setExpanded(!expanded)}>
+        <span className="tree-group-label">{title} ({items.length})</span>
+        <span className="tree-group-toggle">{expanded ? "▾" : "▸"}</span>
+      </button>
+      {expanded && (
+        <div className="tree-group-items">
+          {loading && <div className="tree-item tree-item-loading">Loading...</div>}
+          {error && <div className="tree-item tree-item-error">{error}</div>}
+          {!loading && !error && items.length === 0 && (
+            <div className="sidebar-tree-empty">None found</div>
+          )}
+          {!loading && !error && items.map((item) => (
+            <button key={item} className="tree-item" onClick={() => onItemSelect(item)}>
+              {item}
             </button>
           ))}
         </div>

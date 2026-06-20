@@ -48,6 +48,7 @@ describe("SQLiteWorkspace with browsing integration", () => {
         onTableSelect={() => {}}
         onDatasetSelect={() => {}}
         onRedisKeySelect={() => {}}
+        onNeo4jQuerySelect={() => {}}
       />
     );
 
@@ -70,6 +71,7 @@ describe("SQLiteWorkspace with browsing integration", () => {
         onTableSelect={onTableSelect}
         onDatasetSelect={() => {}}
         onRedisKeySelect={() => {}}
+        onNeo4jQuerySelect={() => {}}
       />
     );
 
