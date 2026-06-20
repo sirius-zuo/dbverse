@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import type { ConnectionProfile, DatabaseKind, PostgresSslMode } from "../api/types";
+import type { ConnectionProfile, DatabaseKind, Neo4jScheme, PostgresSslMode } from "../api/types";
 
 interface Props {
   kind: DatabaseKind;
@@ -47,6 +47,22 @@ export function NewConnectionForm({ kind, initialProfile, onConnect, onCancel }:
   const [redisSeparator, setRedisSeparator] = useState(
     initCfg?.kind === "redis" ? initCfg.keySeparator : ":"
   );
+  const [neo4jHost, setNeo4jHost] = useState(
+    initCfg?.kind === "neo4j" ? initCfg.host : "localhost"
+  );
+  const [neo4jPort, setNeo4jPort] = useState(
+    initCfg?.kind === "neo4j" ? String(initCfg.port) : "7687"
+  );
+  const [neo4jScheme, setNeo4jScheme] = useState<Neo4jScheme>(
+    initCfg?.kind === "neo4j" ? initCfg.scheme : "bolt"
+  );
+  const [neo4jUsername, setNeo4jUsername] = useState(
+    initCfg?.kind === "neo4j" ? initCfg.username : "neo4j"
+  );
+  const [neo4jDatabase, setNeo4jDatabase] = useState(
+    initCfg?.kind === "neo4j" ? initCfg.database : "neo4j"
+  );
+  const [neo4jPassword, setNeo4jPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   function buildProfile(): ConnectionProfile | null {
@@ -109,6 +125,28 @@ export function NewConnectionForm({ kind, initialProfile, onConnect, onCancel }:
         lastUsedAt: null,
       };
     }
+    if (kind === "neo4j") {
+      if (!neo4jHost.trim()) { setError("Host is required."); return null; }
+      const portNum = parseInt(neo4jPort, 10);
+      if (!neo4jPort.trim() || isNaN(portNum)) { setError("Port must be a number."); return null; }
+      if (!neo4jUsername.trim()) { setError("Username is required."); return null; }
+      if (!neo4jDatabase.trim()) { setError("Database is required."); return null; }
+      return {
+        id: initialProfile?.id ?? crypto.randomUUID(),
+        displayName: `${neo4jUsername.trim()}@${neo4jHost.trim()}:${portNum}/${neo4jDatabase.trim()}`,
+        kind: "neo4j" as const,
+        config: {
+          kind: "neo4j" as const,
+          host: neo4jHost.trim(),
+          port: portNum,
+          scheme: neo4jScheme,
+          username: neo4jUsername.trim(),
+          database: neo4jDatabase.trim(),
+        },
+        secretRefs: initialProfile?.secretRefs ?? [],
+        lastUsedAt: null,
+      };
+    }
     return null;
   }
 
@@ -130,6 +168,7 @@ export function NewConnectionForm({ kind, initialProfile, onConnect, onCancel }:
     const password =
       kind === "postgresql" ? pgPassword || undefined :
       kind === "redis" ? redisPassword :
+      kind === "neo4j" ? neo4jPassword :
       undefined;
     onConnect(profile, password);
   }
@@ -228,6 +267,46 @@ export function NewConnectionForm({ kind, initialProfile, onConnect, onCancel }:
           <label className="field-label">
             Key separator
             <input aria-label="Key separator" value={redisSeparator} onChange={(e) => setRedisSeparator(e.target.value)} placeholder=":" />
+          </label>
+        </>
+      )}
+
+      {kind === "neo4j" && (
+        <>
+          <label className="field-label">
+            Host
+            <input aria-label="Host" value={neo4jHost} onChange={(e) => setNeo4jHost(e.target.value)} />
+          </label>
+          <label className="field-label">
+            Port
+            <input aria-label="Port" type="number" value={neo4jPort} onChange={(e) => setNeo4jPort(e.target.value)} />
+          </label>
+          <label className="field-label">
+            Scheme
+            <select aria-label="Scheme" value={neo4jScheme} onChange={(e) => setNeo4jScheme(e.target.value as Neo4jScheme)}>
+              <option value="bolt">bolt</option>
+              <option value="boltSecure">bolt+s</option>
+              <option value="neo4jRouting">neo4j</option>
+              <option value="neo4jRoutingSecure">neo4j+s</option>
+            </select>
+          </label>
+          <label className="field-label">
+            Username
+            <input aria-label="Username" value={neo4jUsername} onChange={(e) => setNeo4jUsername(e.target.value)} />
+          </label>
+          <label className="field-label">
+            Database
+            <input aria-label="Database" value={neo4jDatabase} onChange={(e) => setNeo4jDatabase(e.target.value)} />
+          </label>
+          <label className="field-label">
+            Password
+            <input
+              type="password"
+              aria-label="Password"
+              value={neo4jPassword}
+              onChange={(e) => setNeo4jPassword(e.target.value)}
+              placeholder="Leave blank if no password"
+            />
           </label>
         </>
       )}
