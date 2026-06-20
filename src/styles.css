@@ -837,6 +837,81 @@ button:focus, input:focus, textarea:focus, select:focus { outline: none; }
   color: var(--tx-1);
 }
 
+/* ============================================================
+   NEO4J
+   ============================================================ */
+
+.neo4j-workspace .query-editor {
+  min-height: 80px;
+}
+
+.neo4j-result-view {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.neo4j-result-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 8px 16px 0;
+  border-bottom: 1px solid var(--bd-dim);
+}
+
+.neo4j-result-tab {
+  padding: 6px 12px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--tx-1);
+  font-size: 12px;
+  cursor: pointer;
+}
+.neo4j-result-tab:hover { color: var(--tx-0); }
+.neo4j-result-tab-active {
+  color: var(--amber);
+  border-bottom-color: var(--amber);
+}
+
+.neo4j-graph-view {
+  position: relative;
+  flex: 1;
+  min-height: 360px;
+}
+
+.neo4j-graph-empty {
+  padding: 24px 16px;
+  color: var(--tx-2);
+  font-style: italic;
+  font-size: 12px;
+}
+
+.neo4j-node-inspector {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 280px;
+  max-height: calc(100% - 24px);
+  overflow-y: auto;
+  background: var(--bg-panel);
+  border: 1px solid var(--bd);
+  border-radius: var(--r);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+}
+
+.neo4j-kind-badge {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 2px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  margin-right: 8px;
+}
+.neo4j-kind-node         { background: rgba(229,192,123,0.15); color: var(--amber); }
+.neo4j-kind-relationship { background: rgba(121,192,255,0.15); color: var(--blue); }
+
 /* Sidebar load-more button */
 .tree-load-more {
   display: block;
