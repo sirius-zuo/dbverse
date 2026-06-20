@@ -1,6 +1,8 @@
-export type DatabaseKind = "sqlite" | "postgresql" | "lancedb" | "redis";
+export type DatabaseKind = "sqlite" | "postgresql" | "lancedb" | "redis" | "neo4j";
 
 export type PostgresSslMode = "disable" | "prefer" | "require";
+
+export type Neo4jScheme = "bolt" | "boltSecure" | "neo4jRouting" | "neo4jRoutingSecure";
 
 export type ConnectionConfig =
   | { kind: "sqlite"; path: string }
@@ -20,6 +22,14 @@ export type ConnectionConfig =
       username: string | null;
       db: number;
       keySeparator: string;
+    }
+  | {
+      kind: "neo4j";
+      host: string;
+      port: number;
+      scheme: Neo4jScheme;
+      username: string;
+      database: string;
     };
 
 export interface SecretRef {
@@ -221,4 +231,28 @@ export interface RedisKeyInfo {
 export interface RedisScanResult {
   keys: string[];
   nextCursor: number;
+}
+
+export interface Neo4jNode {
+  elementId: string;
+  labels: string[];
+  properties: unknown;
+}
+
+export interface Neo4jRelationship {
+  elementId: string;
+  relType: string;
+  startNodeElementId: string;
+  endNodeElementId: string;
+  properties: unknown;
+}
+
+export interface Neo4jGraphData {
+  nodes: Neo4jNode[];
+  relationships: Neo4jRelationship[];
+}
+
+export interface Neo4jQueryResult {
+  table: ResultSet;
+  graph: Neo4jGraphData;
 }
