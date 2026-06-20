@@ -8,6 +8,7 @@ pub enum DatabaseKind {
     Postgresql,
     Lancedb,
     Redis,
+    Neo4j,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -19,6 +20,15 @@ pub struct ConnectionProfile {
     pub config: ConnectionConfig,
     pub secret_refs: Vec<SecretRef>,
     pub last_used_at: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum Neo4jScheme {
+    Bolt,
+    BoltSecure,
+    Neo4jRouting,
+    Neo4jRoutingSecure,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -41,6 +51,13 @@ pub enum ConnectionConfig {
         db: u8,
         #[serde(rename = "keySeparator")]
         key_separator: String,
+    },
+    Neo4j {
+        host: String,
+        port: u16,
+        scheme: Neo4jScheme,
+        username: String,
+        database: String,
     },
 }
 
@@ -171,5 +188,33 @@ mod tests {
         let json = serde_json::to_string(&config).unwrap();
         assert!(json.contains("\"kind\":\"redis\""), "expected kind:redis, got: {json}");
         assert!(json.contains("\"keySeparator\":\":\""), "expected camelCase keySeparator, got: {json}");
+    }
+
+    #[test]
+    fn neo4j_config_serializes_correctly() {
+        let config = ConnectionConfig::Neo4j {
+            host: "localhost".to_string(),
+            port: 7687,
+            scheme: Neo4jScheme::BoltSecure,
+            username: "neo4j".to_string(),
+            database: "neo4j".to_string(),
+        };
+        let json = serde_json::to_string(&config).unwrap();
+        assert!(json.contains("\"kind\":\"neo4j\""), "expected kind:neo4j, got: {json}");
+        assert!(json.contains("\"scheme\":\"boltSecure\""), "expected camelCase scheme, got: {json}");
+    }
+
+    #[test]
+    fn neo4j_scheme_round_trips_all_variants() {
+        for scheme in [
+            Neo4jScheme::Bolt,
+            Neo4jScheme::BoltSecure,
+            Neo4jScheme::Neo4jRouting,
+            Neo4jScheme::Neo4jRoutingSecure,
+        ] {
+            let json = serde_json::to_string(&scheme).unwrap();
+            let back: Neo4jScheme = serde_json::from_str(&json).unwrap();
+            assert_eq!(back, scheme);
+        }
     }
 }

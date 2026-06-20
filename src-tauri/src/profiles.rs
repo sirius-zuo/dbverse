@@ -29,6 +29,14 @@ pub fn validate_profile(profile: &ConnectionProfile) -> Result<(), AppRuntimeErr
         {
             Ok(())
         }
+        (DatabaseKind::Neo4j, ConnectionConfig::Neo4j { host, port, username, database, .. })
+            if !host.trim().is_empty()
+                && *port > 0
+                && !username.trim().is_empty()
+                && !database.trim().is_empty() =>
+        {
+            Ok(())
+        }
         _ => Err(AppRuntimeError::User(AppError {
             category: AppErrorCategory::QueryError,
             message: "Connection profile is incomplete or does not match its database kind."
@@ -100,7 +108,7 @@ pub fn save_profiles(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::domain::PostgresSslMode;
+    use crate::domain::{PostgresSslMode, Neo4jScheme};
     use uuid::Uuid;
 
     #[test]
@@ -212,5 +220,43 @@ mod tests {
         assert_eq!(loaded[0].id, profile.id);
         assert_eq!(loaded[0].display_name, "RoundTrip");
         std::fs::remove_file(tmp).ok();
+    }
+
+    #[test]
+    fn accepts_valid_neo4j_profile() {
+        let profile = ConnectionProfile {
+            id: Uuid::new_v4(),
+            display_name: "Local Neo4j".to_string(),
+            kind: DatabaseKind::Neo4j,
+            config: ConnectionConfig::Neo4j {
+                host: "localhost".to_string(),
+                port: 7687,
+                scheme: Neo4jScheme::Bolt,
+                username: "neo4j".to_string(),
+                database: "neo4j".to_string(),
+            },
+            secret_refs: vec![],
+            last_used_at: None,
+        };
+        assert!(validate_profile(&profile).is_ok());
+    }
+
+    #[test]
+    fn rejects_neo4j_with_empty_database_name() {
+        let profile = ConnectionProfile {
+            id: Uuid::new_v4(),
+            display_name: "Bad Neo4j".to_string(),
+            kind: DatabaseKind::Neo4j,
+            config: ConnectionConfig::Neo4j {
+                host: "localhost".to_string(),
+                port: 7687,
+                scheme: Neo4jScheme::Bolt,
+                username: "neo4j".to_string(),
+                database: "".to_string(),
+            },
+            secret_refs: vec![],
+            last_used_at: None,
+        };
+        assert!(validate_profile(&profile).is_err());
     }
 }
