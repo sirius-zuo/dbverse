@@ -81,6 +81,8 @@ fn bolt_type_to_bolt_like(value: BoltType) -> BoltLike {
         BoltType::Node(bolt_node) => {
             let node = neo4rs::Node::new(bolt_node);
             BoltLike::Node(Neo4jNode {
+                // neo4rs 0.8 has no string element_id API; this is the stringified numeric Bolt id,
+                // not a true Neo4j-5 element ID. Unique only within this query result, not stable across executions.
                 element_id: node.id().to_string(),
                 labels: node.labels().into_iter().map(|l| l.to_string()).collect(),
                 properties: node_properties_json(&node),
@@ -89,6 +91,8 @@ fn bolt_type_to_bolt_like(value: BoltType) -> BoltLike {
         BoltType::Relation(bolt_rel) => {
             let rel = neo4rs::Relation::new(bolt_rel);
             BoltLike::Relationship(Neo4jRelationship {
+                // neo4rs 0.8 has no string element_id API; these are stringified numeric Bolt ids,
+                // not true Neo4j-5 element IDs. Unique only within this query result, not stable across executions.
                 element_id: rel.id().to_string(),
                 rel_type: rel.typ().to_string(),
                 start_node_element_id: rel.start_node_id().to_string(),
