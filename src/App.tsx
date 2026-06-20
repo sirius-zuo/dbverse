@@ -23,6 +23,7 @@ export function App() {
   const [selectedTable, setSelectedTable] = useState<{ profileId: string; tableName: string } | null>(null);
   const [selectedDataset, setSelectedDataset] = useState<{ profileId: string; datasetName: string } | null>(null);
   const [selectedRedisKey, setSelectedRedisKey] = useState<{ profileId: string; key: string } | null>(null);
+  const [selectedNeo4jQuery, setSelectedNeo4jQuery] = useState<{ profileId: string; cypher: string; nonce: string } | null>(null);
 
   useEffect(() => {
     void appVersion().then(setVersion).catch(() => setVersion("unknown"));
@@ -98,7 +99,7 @@ export function App() {
       (t) => t.type === "workspace" && t.profile.id === profile.id
     );
     if (existing) { setActiveTabId(existing.id); return; }
-    if (profile.kind === "postgresql" || profile.kind === "redis") {
+    if (profile.kind === "postgresql" || profile.kind === "redis" || profile.kind === "neo4j") {
       setPendingOpenPg(profile);
       return;
     }
@@ -212,18 +213,28 @@ export function App() {
     const tableName = tableId.startsWith("table:") ? tableId.slice(6) : tableId;
     setSelectedTable({ profileId: profile.id, tableName });
     setSelectedDataset(null);
+    setSelectedNeo4jQuery(null);
   }
 
   function handleDatasetSelect(_profile: ConnectionProfile, datasetId: string, _schema: LanceDbDatasetSchema) {
     const datasetName = datasetId.startsWith("dataset:") ? datasetId.slice(8) : datasetId;
     setSelectedDataset({ profileId: _profile.id, datasetName });
     setSelectedTable(null);
+    setSelectedNeo4jQuery(null);
   }
 
   function handleRedisKeySelect(profile: ConnectionProfile, key: string) {
     setSelectedRedisKey({ profileId: profile.id, key });
     setSelectedTable(null);
     setSelectedDataset(null);
+    setSelectedNeo4jQuery(null);
+  }
+
+  function handleNeo4jQuerySelect(profile: ConnectionProfile, cypher: string) {
+    setSelectedNeo4jQuery({ profileId: profile.id, cypher, nonce: crypto.randomUUID() });
+    setSelectedTable(null);
+    setSelectedDataset(null);
+    setSelectedRedisKey(null);
   }
 
   if (activeDbKind === null) {
@@ -251,6 +262,7 @@ export function App() {
         onTableSelect={handleTableSelect}
         onDatasetSelect={handleDatasetSelect}
         onRedisKeySelect={handleRedisKeySelect}
+        onNeo4jQuerySelect={handleNeo4jQuerySelect}
         selectedTable={selectedTable}
         selectedDataset={selectedDataset}
       />
@@ -277,6 +289,7 @@ export function App() {
         selectedTable={selectedTable}
         selectedDataset={selectedDataset}
         selectedRedisKey={selectedRedisKey}
+        selectedNeo4jQuery={selectedNeo4jQuery}
         onTablePreviewClose={() => {
           setSelectedTable(null);
           setSelectedDataset(null);

@@ -3,6 +3,7 @@ import { LanceDbWorkspace } from "../workspaces/lancedb/LanceDbWorkspace";
 import { PostgresWorkspace } from "../workspaces/postgres/PostgresWorkspace";
 import { SQLiteWorkspace } from "../workspaces/sqlite/SQLiteWorkspace";
 import { RedisWorkspace } from "../workspaces/redis/RedisWorkspace";
+import { Neo4jWorkspace } from "../workspaces/neo4j/Neo4jWorkspace";
 
 interface WorkspaceRouterProps {
   profile: ConnectionProfile | null;
@@ -10,10 +11,11 @@ interface WorkspaceRouterProps {
   selectedTable: TableSelection | null;
   selectedDataset: DatasetSelection | null;
   selectedRedisKey?: string | null;
+  selectedNeo4jQuery?: { cypher: string; nonce: string } | null;
   onTablePreviewClose(): void;
 }
 
-export function WorkspaceRouter({ profile, sessionPassword, selectedTable, selectedDataset, selectedRedisKey, onTablePreviewClose }: WorkspaceRouterProps) {
+export function WorkspaceRouter({ profile, sessionPassword, selectedTable, selectedDataset, selectedRedisKey, selectedNeo4jQuery, onTablePreviewClose }: WorkspaceRouterProps) {
   if (!profile) {
     return (
       <section className="workspace-empty">
@@ -59,6 +61,16 @@ export function WorkspaceRouter({ profile, sessionPassword, selectedTable, selec
         initialPassword={sessionPassword}
         selectedKey={selectedRedisKey ?? null}
         onKeyPreviewClose={onTablePreviewClose}
+      />
+    );
+  }
+
+  if (profile.kind === "neo4j") {
+    return (
+      <Neo4jWorkspace
+        profile={profile}
+        initialPassword={sessionPassword}
+        pendingQuery={selectedNeo4jQuery ?? null}
       />
     );
   }

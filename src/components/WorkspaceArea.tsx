@@ -19,6 +19,7 @@ interface Props {
   selectedTable: TableSelection | null;
   selectedDataset: DatasetSelection | null;
   selectedRedisKey: { profileId: string; key: string } | null;
+  selectedNeo4jQuery: { profileId: string; cypher: string; nonce: string } | null;
   onTablePreviewClose(): void;
   onInteract?(): void;
 }
@@ -38,6 +39,7 @@ export function WorkspaceArea({
   selectedTable,
   selectedDataset,
   selectedRedisKey,
+  selectedNeo4jQuery,
   onTablePreviewClose,
   onInteract,
 }: Props) {
@@ -83,6 +85,11 @@ export function WorkspaceArea({
             ? selectedRedisKey.profileId === activeTab.profile.id
               ? selectedRedisKey.key
               : null
+            : null
+        }
+        selectedNeo4jQuery={
+          selectedNeo4jQuery && activeTab?.type === "workspace" && selectedNeo4jQuery.profileId === activeTab.profile.id
+            ? { cypher: selectedNeo4jQuery.cypher, nonce: selectedNeo4jQuery.nonce }
             : null
         }
         onTablePreviewClose={onTablePreviewClose}
