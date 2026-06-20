@@ -2,6 +2,7 @@ pub mod connectors;
 pub mod domain;
 pub mod embeddings;
 pub mod errors;
+pub mod neo4j_model;
 pub mod profiles;
 pub mod query_safety;
 pub mod redis_model;
