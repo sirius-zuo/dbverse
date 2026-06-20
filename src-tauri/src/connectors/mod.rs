@@ -8,6 +8,7 @@ use crate::errors::{AppError, AppRuntimeError};
 use crate::result_model::ResultSet;
 
 pub mod lancedb;
+pub mod neo4j_connector;
 pub mod postgres;
 pub mod redis_connector;
 pub mod sqlite;
