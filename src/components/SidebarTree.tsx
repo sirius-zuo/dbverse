@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import type { ConnectionProfile, TableSchema, LanceDbDatasetSchema, ResultValue } from "../api/types";
 import {
   sqliteListTables,
@@ -62,6 +62,30 @@ function cellText(cell: ResultValue | undefined): string {
   if (!cell || cell.type === "null") return "";
   if ("value" in cell && typeof cell.value === "string") return cell.value;
   return "";
+}
+
+function loadNeo4jGroup(
+  fetcher: () => Promise<string[]>,
+  setItems: (items: string[]) => void,
+  setLoading: (loading: boolean) => void,
+  setError: (error: string | null) => void,
+  fallbackMessage: string,
+  isCancelled: () => boolean
+): void {
+  setLoading(true);
+  setError(null);
+  fetcher()
+    .then((items) => { if (!isCancelled()) setItems(items); })
+    .catch((err) => {
+      if (!isCancelled()) {
+        setError(
+          typeof err === "object" && err !== null && "message" in err
+            ? String((err as Record<string, unknown>).message)
+            : fallbackMessage
+        );
+      }
+    })
+    .finally(() => { if (!isCancelled()) setLoading(false); });
 }
 
 function extractPgError(error: unknown): string {
@@ -303,36 +327,24 @@ export function SidebarTree({
       return;
     }
     let cancelled = false;
+    const isCancelled = () => cancelled;
 
-    setNeo4jLabelsLoading(true);
-    setNeo4jLabelsError(null);
-    neo4jListLabels(profile, sessionPassword || null)
-      .then((labels) => { if (!cancelled) setNeo4jLabels(labels); })
-      .catch((err) => {
-        if (!cancelled) {
-          setNeo4jLabelsError(
-            typeof err === "object" && err !== null && "message" in err
-              ? String((err as Record<string, unknown>).message)
-              : "Failed to load labels"
-          );
-        }
-      })
-      .finally(() => { if (!cancelled) setNeo4jLabelsLoading(false); });
-
-    setNeo4jRelTypesLoading(true);
-    setNeo4jRelTypesError(null);
-    neo4jListRelationshipTypes(profile, sessionPassword || null)
-      .then((types) => { if (!cancelled) setNeo4jRelTypes(types); })
-      .catch((err) => {
-        if (!cancelled) {
-          setNeo4jRelTypesError(
-            typeof err === "object" && err !== null && "message" in err
-              ? String((err as Record<string, unknown>).message)
-              : "Failed to load relationship types"
-          );
-        }
-      })
-      .finally(() => { if (!cancelled) setNeo4jRelTypesLoading(false); });
+    loadNeo4jGroup(
+      () => neo4jListLabels(profile, sessionPassword || null),
+      setNeo4jLabels,
+      setNeo4jLabelsLoading,
+      setNeo4jLabelsError,
+      "Failed to load labels",
+      isCancelled
+    );
+    loadNeo4jGroup(
+      () => neo4jListRelationshipTypes(profile, sessionPassword || null),
+      setNeo4jRelTypes,
+      setNeo4jRelTypesLoading,
+      setNeo4jRelTypesError,
+      "Failed to load relationship types",
+      isCancelled
+    );
 
     return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -471,6 +483,27 @@ export function SidebarTree({
   );
 }
 
+function CollapsibleTreeGroup({
+  label,
+  defaultExpanded = true,
+  children,
+}: {
+  label: ReactNode;
+  defaultExpanded?: boolean;
+  children: ReactNode;
+}) {
+  const [expanded, setExpanded] = useState(defaultExpanded);
+  return (
+    <div className="tree-group">
+      <button className="tree-group-header" onClick={() => setExpanded(!expanded)}>
+        <span className="tree-group-label">{label}</span>
+        <span className="tree-group-toggle">{expanded ? "▾" : "▸"}</span>
+      </button>
+      {expanded && <div className="tree-group-items">{children}</div>}
+    </div>
+  );
+}
+
 function PgEntryGroup({
   label,
   entries,
@@ -482,27 +515,18 @@ function PgEntryGroup({
   selectedTable: string | null;
   onEntrySelect(entry: PgEntry): void;
 }) {
-  const [expanded, setExpanded] = useState(true);
   return (
-    <div className="tree-group">
-      <button className="tree-group-header" onClick={() => setExpanded(!expanded)}>
-        <span className="tree-group-label">{label}</span>
-        <span className="tree-group-toggle">{expanded ? "▾" : "▸"}</span>
-      </button>
-      {expanded && (
-        <div className="tree-group-items">
-          {entries.map((entry) => (
-            <button
-              key={entry.id}
-              className={`tree-item ${selectedTable === entry.id ? "tree-item-active" : ""}`}
-              onClick={() => onEntrySelect(entry)}
-            >
-              {entry.name}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
+    <CollapsibleTreeGroup label={label}>
+      {entries.map((entry) => (
+        <button
+          key={entry.id}
+          className={`tree-item ${selectedTable === entry.id ? "tree-item-active" : ""}`}
+          onClick={() => onEntrySelect(entry)}
+        >
+          {entry.name}
+        </button>
+      ))}
+    </CollapsibleTreeGroup>
   );
 }
 
@@ -519,28 +543,19 @@ function Neo4jGroup({
   items: string[];
   onItemSelect(item: string): void;
 }) {
-  const [expanded, setExpanded] = useState(true);
   return (
-    <div className="tree-group">
-      <button className="tree-group-header" onClick={() => setExpanded(!expanded)}>
-        <span className="tree-group-label">{title} ({items.length})</span>
-        <span className="tree-group-toggle">{expanded ? "▾" : "▸"}</span>
-      </button>
-      {expanded && (
-        <div className="tree-group-items">
-          {loading && <div className="tree-item tree-item-loading">Loading...</div>}
-          {error && <div className="tree-item tree-item-error">{error}</div>}
-          {!loading && !error && items.length === 0 && (
-            <div className="sidebar-tree-empty">None found</div>
-          )}
-          {!loading && !error && items.map((item) => (
-            <button key={item} className="tree-item" onClick={() => onItemSelect(item)}>
-              {item}
-            </button>
-          ))}
-        </div>
+    <CollapsibleTreeGroup label={`${title} (${items.length})`}>
+      {loading && <div className="tree-item tree-item-loading">Loading...</div>}
+      {error && <div className="tree-item tree-item-error">{error}</div>}
+      {!loading && !error && items.length === 0 && (
+        <div className="sidebar-tree-empty">None found</div>
       )}
-    </div>
+      {!loading && !error && items.map((item) => (
+        <button key={item} className="tree-item" onClick={() => onItemSelect(item)}>
+          {item}
+        </button>
+      ))}
+    </CollapsibleTreeGroup>
   );
 }
 
@@ -555,8 +570,6 @@ function TreeGroupItem({
   onTableSelect(tableId: string, schema: TableSchema): void;
   path: string;
 }) {
-  const [expanded, setExpanded] = useState(group.type !== "indexes");
-
   async function handleSelect(itemId: string, itemName: string) {
     if (group.type === "indexes") {
       const parts = itemId.split(":");
@@ -578,28 +591,17 @@ function TreeGroupItem({
   }
 
   return (
-    <div className="tree-group">
-      <button
-        className="tree-group-header"
-        onClick={() => setExpanded(!expanded)}
-      >
-        <span className="tree-group-label">{group.label}</span>
-        <span className="tree-group-toggle">{expanded ? "▾" : "▸"}</span>
-      </button>
-      {expanded && (
-        <div className="tree-group-items">
-          {group.items.map((item) => (
-            <button
-              key={item.id}
-              className={`tree-item ${selectedTable === item.id ? "tree-item-active" : ""}`}
-              onClick={() => handleSelect(item.id, item.name)}
-            >
-              {item.name}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
+    <CollapsibleTreeGroup label={group.label} defaultExpanded={group.type !== "indexes"}>
+      {group.items.map((item) => (
+        <button
+          key={item.id}
+          className={`tree-item ${selectedTable === item.id ? "tree-item-active" : ""}`}
+          onClick={() => handleSelect(item.id, item.name)}
+        >
+          {item.name}
+        </button>
+      ))}
+    </CollapsibleTreeGroup>
   );
 }
 
@@ -614,7 +616,6 @@ function LanceDbDatasetGroup({
   onDatasetSelect(datasetId: string, schema: LanceDbDatasetSchema): void;
   profile: ConnectionProfile;
 }) {
-  const [expanded, setExpanded] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -648,33 +649,22 @@ function LanceDbDatasetGroup({
   }
 
   return (
-    <div className="tree-group">
-      <button
-        className="tree-group-header"
-        onClick={() => setExpanded(!expanded)}
-      >
-        <span className="tree-group-label">Datasets ({datasets.length})</span>
-        <span className="tree-group-toggle">{expanded ? "▾" : "▸"}</span>
-      </button>
-      {expanded && (
-        <div className="tree-group-items">
-          {loading && <div className="tree-item tree-item-loading">Loading...</div>}
-          {error && <div className="tree-item tree-item-error">{error}</div>}
-          {datasets.map((item) => (
-            <button
-              key={item.id}
-              className={`tree-item ${selectedTable === item.id ? "tree-item-active" : ""}`}
-              onClick={() => handleSelect(item.id, item.name)}
-            >
-              {item.name}
-            </button>
-          ))}
-          {!loading && !error && datasets.length === 0 && (
-            <div className="sidebar-tree-empty">No datasets found</div>
-          )}
-        </div>
+    <CollapsibleTreeGroup label={`Datasets (${datasets.length})`}>
+      {loading && <div className="tree-item tree-item-loading">Loading...</div>}
+      {error && <div className="tree-item tree-item-error">{error}</div>}
+      {datasets.map((item) => (
+        <button
+          key={item.id}
+          className={`tree-item ${selectedTable === item.id ? "tree-item-active" : ""}`}
+          onClick={() => handleSelect(item.id, item.name)}
+        >
+          {item.name}
+        </button>
+      ))}
+      {!loading && !error && datasets.length === 0 && (
+        <div className="sidebar-tree-empty">No datasets found</div>
       )}
-    </div>
+    </CollapsibleTreeGroup>
   );
 }
 
@@ -719,7 +709,6 @@ function RedisNamespaceNode({
   selectedKey: string | null;
   onKeySelect(key: string): void;
 }) {
-  const [expanded, setExpanded] = useState(false);
   const isLeaf = node.children.size === 0;
 
   if (isLeaf) {
@@ -734,31 +723,23 @@ function RedisNamespaceNode({
   }
 
   return (
-    <div className="tree-group">
-      <button className="tree-group-header" onClick={() => setExpanded(!expanded)}>
-        <span className="tree-group-label">{node.label}</span>
-        <span className="tree-group-toggle">{expanded ? "▾" : "▸"}</span>
-      </button>
-      {expanded && (
-        <div className="tree-group-items">
-          {node.fullKey && (
-            <button
-              className={`tree-item ${selectedKey === node.fullKey ? "tree-item-active" : ""}`}
-              onClick={() => node.fullKey && onKeySelect(node.fullKey)}
-            >
-              (this key)
-            </button>
-          )}
-          {Array.from(node.children.values()).map((child) => (
-            <RedisNamespaceNode
-              key={child.label}
-              node={child}
-              selectedKey={selectedKey}
-              onKeySelect={onKeySelect}
-            />
-          ))}
-        </div>
+    <CollapsibleTreeGroup label={node.label} defaultExpanded={false}>
+      {node.fullKey && (
+        <button
+          className={`tree-item ${selectedKey === node.fullKey ? "tree-item-active" : ""}`}
+          onClick={() => node.fullKey && onKeySelect(node.fullKey)}
+        >
+          (this key)
+        </button>
       )}
-    </div>
+      {Array.from(node.children.values()).map((child) => (
+        <RedisNamespaceNode
+          key={child.label}
+          node={child}
+          selectedKey={selectedKey}
+          onKeySelect={onKeySelect}
+        />
+      ))}
+    </CollapsibleTreeGroup>
   );
 }
