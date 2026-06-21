@@ -1,6 +1,6 @@
 // src-tauri/src/connectors/neo4j_connector.rs
 use crate::domain::{ConnectionConfig, ConnectionProfile, Neo4jScheme};
-use crate::errors::{AppError, AppErrorCategory, AppRuntimeError};
+use crate::errors::{AppError, AppRuntimeError};
 use crate::neo4j_model::{
     bolt_like_to_json, build_query_result, BoltLike, Neo4jNode, Neo4jQueryResult, Neo4jRelationship,
 };
@@ -22,23 +22,15 @@ pub fn build_neo4j_uri(profile: &ConnectionProfile) -> Option<String> {
 }
 
 fn make_conn_error(e: impl std::fmt::Display) -> AppRuntimeError {
-    AppRuntimeError::User(AppError {
-        category: AppErrorCategory::ConnectionFailed,
-        message: "Could not connect to Neo4j.".into(),
-        recovery_hint: Some("Check host, port, scheme, username, and password.".into()),
-        technical_details: Some(e.to_string()),
-        operation_id: None,
-    })
+    AppRuntimeError::User(AppError::connection_failed(
+        "Could not connect to Neo4j.",
+        "Check host, port, scheme, username, and password.",
+        e,
+    ))
 }
 
 fn make_query_error(e: impl std::fmt::Display) -> AppRuntimeError {
-    AppRuntimeError::User(AppError {
-        category: AppErrorCategory::QueryError,
-        message: "Cypher query failed.".into(),
-        recovery_hint: None,
-        technical_details: Some(e.to_string()),
-        operation_id: None,
-    })
+    AppRuntimeError::User(AppError::query_failed("Cypher query failed.", e))
 }
 
 async fn connect(profile: &ConnectionProfile, password: Option<&str>) -> Result<Graph, AppRuntimeError> {
@@ -85,7 +77,7 @@ fn bolt_type_to_bolt_like(value: BoltType) -> BoltLike {
                 // not a true Neo4j-5 element ID. Unique only within this query result, not stable across executions.
                 element_id: node.id().to_string(),
                 labels: node.labels().into_iter().map(|l| l.to_string()).collect(),
-                properties: node_properties_json(&node),
+                properties: properties_json(node.keys(), |key| node.get::<BoltType>(key)),
             })
         }
         BoltType::Relation(bolt_rel) => {
@@ -97,27 +89,24 @@ fn bolt_type_to_bolt_like(value: BoltType) -> BoltLike {
                 rel_type: rel.typ().to_string(),
                 start_node_element_id: rel.start_node_id().to_string(),
                 end_node_element_id: rel.end_node_id().to_string(),
-                properties: relation_properties_json(&rel),
+                properties: properties_json(rel.keys(), |key| rel.get::<BoltType>(key)),
             })
         }
         other => BoltLike::Scalar(Value::DatabaseSpecific(format!("{other:?}"))),
     }
 }
 
-fn node_properties_json(node: &neo4rs::Node) -> serde_json::Value {
+// `neo4rs::Node` and `neo4rs::Relation` both expose `.keys() -> Vec<&str>` and
+// `.get::<T>(key) -> Result<T, _>` with the same shape but share no common
+// trait in the crate, so this takes the already-resolved keys/getter rather
+// than the entity itself.
+fn properties_json<'a>(
+    keys: Vec<&'a str>,
+    get: impl Fn(&str) -> Result<BoltType, neo4rs::DeError>,
+) -> serde_json::Value {
     let mut map = serde_json::Map::new();
-    for key in node.keys() {
-        if let Ok(value) = node.get::<BoltType>(key) {
-            map.insert(key.to_string(), bolt_like_to_json(&bolt_type_to_bolt_like(value)));
-        }
-    }
-    serde_json::Value::Object(map)
-}
-
-fn relation_properties_json(rel: &neo4rs::Relation) -> serde_json::Value {
-    let mut map = serde_json::Map::new();
-    for key in rel.keys() {
-        if let Ok(value) = rel.get::<BoltType>(key) {
+    for key in keys {
+        if let Ok(value) = get(key) {
             map.insert(key.to_string(), bolt_like_to_json(&bolt_type_to_bolt_like(value)));
         }
     }
