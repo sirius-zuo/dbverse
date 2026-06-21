@@ -213,6 +213,7 @@ export function App() {
     const tableName = tableId.startsWith("table:") ? tableId.slice(6) : tableId;
     setSelectedTable({ profileId: profile.id, tableName });
     setSelectedDataset(null);
+    setSelectedRedisKey(null);
     setSelectedNeo4jQuery(null);
   }
 
@@ -220,6 +221,7 @@ export function App() {
     const datasetName = datasetId.startsWith("dataset:") ? datasetId.slice(8) : datasetId;
     setSelectedDataset({ profileId: _profile.id, datasetName });
     setSelectedTable(null);
+    setSelectedRedisKey(null);
     setSelectedNeo4jQuery(null);
   }
 
