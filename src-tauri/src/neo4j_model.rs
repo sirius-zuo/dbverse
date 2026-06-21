@@ -134,6 +134,7 @@ pub fn build_query_result(column_names: Vec<String>, rows: Vec<Vec<BoltLike>>) -
         }
         value_rows.push(value_row);
     }
+    backfill_missing_relationship_endpoints(&mut graph);
     let row_count = value_rows.len();
     let columns = column_names
         .into_iter()
@@ -160,6 +161,36 @@ pub fn build_query_result(column_names: Vec<String>, rows: Vec<Vec<BoltLike>>) -
             },
         },
         graph,
+    }
+}
+
+/// A relationship's endpoint ids are only guaranteed present in `graph.nodes`
+/// when the query also returns the endpoint nodes themselves (e.g. the
+/// sidebar's `MATCH (a)-[r:TYPE]->(b) RETURN a, r, b`). A free-form query
+/// like `MATCH (a)-[r]->(b) RETURN r` returns only the relationship, leaving
+/// `start_node_element_id`/`end_node_element_id` dangling — which the
+/// frontend's force-graph renderer treats as a fatal error (it throws when a
+/// link references a node id absent from the node set). Backfill an empty
+/// placeholder node for any endpoint id not already present, once the full
+/// result has been walked, so the graph is always fully connected.
+fn backfill_missing_relationship_endpoints(graph: &mut Neo4jGraphData) {
+    use std::collections::HashSet;
+    let existing_ids: HashSet<&str> = graph.nodes.iter().map(|n| n.element_id.as_str()).collect();
+    let mut missing_ids: Vec<String> = Vec::new();
+    let mut seen_missing: HashSet<String> = HashSet::new();
+    for rel in &graph.relationships {
+        for id in [&rel.start_node_element_id, &rel.end_node_element_id] {
+            if !existing_ids.contains(id.as_str()) && seen_missing.insert(id.clone()) {
+                missing_ids.push(id.clone());
+            }
+        }
+    }
+    for element_id in missing_ids {
+        graph.nodes.push(Neo4jNode {
+            element_id,
+            labels: Vec::new(),
+            properties: serde_json::Value::Object(serde_json::Map::new()),
+        });
     }
 }
 
@@ -307,5 +338,39 @@ mod tests {
         );
         assert_eq!(result.table.columns[0].value_type, ValueType::Json);
         assert_eq!(result.table.columns[1].value_type, ValueType::Integer);
+    }
+
+    #[test]
+    fn build_query_result_backfills_placeholder_nodes_for_relationship_endpoints_not_returned() {
+        // e.g. `MATCH (a)-[r:KNOWS]->(b) RETURN r` — only the relationship is
+        // returned, neither endpoint node. The graph must still be fully
+        // connected so the frontend's force-graph renderer never receives a
+        // link whose source/target id has no matching node.
+        let result = build_query_result(
+            vec!["r".to_string()],
+            vec![vec![BoltLike::Relationship(sample_relationship("5", "1", "2"))]],
+        );
+        assert_eq!(result.graph.nodes.len(), 2);
+        assert!(result.graph.nodes.iter().any(|n| n.element_id == "1"));
+        assert!(result.graph.nodes.iter().any(|n| n.element_id == "2"));
+    }
+
+    #[test]
+    fn build_query_result_does_not_overwrite_a_node_actually_returned_as_relationship_endpoint() {
+        // `MATCH (a)-[r:KNOWS]->(b) RETURN a, r` — only one endpoint (`a`) is
+        // returned. The real node for `a` must keep its real labels; only
+        // the missing endpoint (`b`) gets a placeholder.
+        let result = build_query_result(
+            vec!["a".to_string(), "r".to_string()],
+            vec![vec![
+                BoltLike::Node(sample_node("1", "Person")),
+                BoltLike::Relationship(sample_relationship("5", "1", "2")),
+            ]],
+        );
+        assert_eq!(result.graph.nodes.len(), 2);
+        let returned = result.graph.nodes.iter().find(|n| n.element_id == "1").unwrap();
+        assert_eq!(returned.labels, vec!["Person".to_string()]);
+        let placeholder = result.graph.nodes.iter().find(|n| n.element_id == "2").unwrap();
+        assert!(placeholder.labels.is_empty());
     }
 }
