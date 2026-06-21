@@ -1,6 +1,6 @@
 use crate::result_model::{ResultColumn, ResultMetadata, ResultSet, Value, ValueType};
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -25,6 +25,13 @@ pub struct Neo4jRelationship {
 pub struct Neo4jGraphData {
     pub nodes: Vec<Neo4jNode>,
     pub relationships: Vec<Neo4jRelationship>,
+    // O(1) membership tracking for `collect_graph_elements`'s dedup check, so
+    // a query result with many distinct nodes/relationships doesn't degrade
+    // to O(n^2). Scratch state only — never part of the wire format.
+    #[serde(skip)]
+    seen_node_ids: HashSet<String>,
+    #[serde(skip)]
+    seen_relationship_ids: HashSet<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -65,20 +72,30 @@ pub fn bolt_like_to_value(value: &BoltLike) -> Value {
             "endNodeElementId": rel.end_node_element_id,
             "properties": rel.properties,
         })),
-        BoltLike::List(items) => {
-            Value::Json(serde_json::Value::Array(items.iter().map(bolt_like_to_json).collect()))
-        }
-        BoltLike::Map(map) => Value::Json(serde_json::Value::Object(
-            map.iter().map(|(k, v)| (k.clone(), bolt_like_to_json(v))).collect(),
-        )),
+        BoltLike::List(_) | BoltLike::Map(_) => Value::Json(bolt_like_to_json(value)),
     }
 }
 
 /// Converts a `BoltLike` value into plain (untagged) JSON — used both for
 /// embedding lists/maps inside `bolt_like_to_value` and, from the connector,
-/// for dumping a node/relationship's properties.
+/// for dumping a node/relationship's properties. Matches on `BoltLike`
+/// directly (rather than routing scalars through `bolt_like_to_value` first)
+/// so nested lists/maps are walked once per level, not twice.
 pub fn bolt_like_to_json(value: &BoltLike) -> serde_json::Value {
-    match bolt_like_to_value(value) {
+    match value {
+        BoltLike::Scalar(v) => value_to_json(v.clone()),
+        BoltLike::Node(_) | BoltLike::Relationship(_) => value_to_json(bolt_like_to_value(value)),
+        BoltLike::List(items) => {
+            serde_json::Value::Array(items.iter().map(bolt_like_to_json).collect())
+        }
+        BoltLike::Map(map) => serde_json::Value::Object(
+            map.iter().map(|(k, v)| (k.clone(), bolt_like_to_json(v))).collect(),
+        ),
+    }
+}
+
+fn value_to_json(value: Value) -> serde_json::Value {
+    match value {
         Value::Null => serde_json::Value::Null,
         Value::Boolean(b) => serde_json::Value::Bool(b),
         Value::Integer(i) => serde_json::json!(i),
@@ -97,12 +114,12 @@ pub fn bolt_like_to_json(value: &BoltLike) -> serde_json::Value {
 pub fn collect_graph_elements(value: &BoltLike, graph: &mut Neo4jGraphData) {
     match value {
         BoltLike::Node(node) => {
-            if !graph.nodes.iter().any(|n| n.element_id == node.element_id) {
+            if graph.seen_node_ids.insert(node.element_id.clone()) {
                 graph.nodes.push(node.clone());
             }
         }
         BoltLike::Relationship(rel) => {
-            if !graph.relationships.iter().any(|r| r.element_id == rel.element_id) {
+            if graph.seen_relationship_ids.insert(rel.element_id.clone()) {
                 graph.relationships.push(rel.clone());
             }
         }
@@ -174,23 +191,19 @@ pub fn build_query_result(column_names: Vec<String>, rows: Vec<Vec<BoltLike>>) -
 /// placeholder node for any endpoint id not already present, once the full
 /// result has been walked, so the graph is always fully connected.
 fn backfill_missing_relationship_endpoints(graph: &mut Neo4jGraphData) {
-    use std::collections::HashSet;
-    let existing_ids: HashSet<&str> = graph.nodes.iter().map(|n| n.element_id.as_str()).collect();
-    let mut missing_ids: Vec<String> = Vec::new();
-    let mut seen_missing: HashSet<String> = HashSet::new();
-    for rel in &graph.relationships {
-        for id in [&rel.start_node_element_id, &rel.end_node_element_id] {
-            if !existing_ids.contains(id.as_str()) && seen_missing.insert(id.clone()) {
-                missing_ids.push(id.clone());
-            }
+    let endpoint_ids: Vec<String> = graph
+        .relationships
+        .iter()
+        .flat_map(|rel| [rel.start_node_element_id.clone(), rel.end_node_element_id.clone()])
+        .collect();
+    for element_id in endpoint_ids {
+        if graph.seen_node_ids.insert(element_id.clone()) {
+            graph.nodes.push(Neo4jNode {
+                element_id,
+                labels: Vec::new(),
+                properties: serde_json::Value::Object(serde_json::Map::new()),
+            });
         }
-    }
-    for element_id in missing_ids {
-        graph.nodes.push(Neo4jNode {
-            element_id,
-            labels: Vec::new(),
-            properties: serde_json::Value::Object(serde_json::Map::new()),
-        });
     }
 }
 
