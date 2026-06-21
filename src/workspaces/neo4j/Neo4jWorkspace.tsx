@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import type { ConnectionProfile, Neo4jQueryResult } from "../../api/types";
 import { classifyCypherStatement } from "../../api/tauri";
 import { neo4jExecuteQuery } from "../../api/neo4j";
+import { extractApiError } from "../../api/errors";
 import { Neo4jResultView } from "./Neo4jResultView";
 
 interface Props {
@@ -11,13 +12,7 @@ interface Props {
 }
 
 function extractError(err: unknown): string {
-  if (typeof err === "object" && err !== null) {
-    const e = err as Record<string, unknown>;
-    const msg = typeof e.message === "string" ? e.message : "Cypher query failed.";
-    const details = typeof e.technicalDetails === "string" ? e.technicalDetails : null;
-    return details ? `${msg}: ${details}` : msg;
-  }
-  return "Cypher query failed.";
+  return extractApiError(err, "Cypher query failed.");
 }
 
 export function Neo4jWorkspace({ profile, initialPassword, pendingQuery }: Props) {
