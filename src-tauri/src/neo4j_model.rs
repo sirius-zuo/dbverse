@@ -137,10 +137,15 @@ pub fn build_query_result(column_names: Vec<String>, rows: Vec<Vec<BoltLike>>) -
     let row_count = value_rows.len();
     let columns = column_names
         .into_iter()
-        .map(|name| ResultColumn {
-            name,
-            value_type: ValueType::DatabaseSpecific,
-            database_type: None,
+        .enumerate()
+        .map(|(index, name)| {
+            let value_type = value_rows
+                .iter()
+                .filter_map(|row| row.get(index))
+                .find(|value| !matches!(value, Value::Null))
+                .map(value_type_of)
+                .unwrap_or(ValueType::Null);
+            ResultColumn { name, value_type, database_type: None }
         })
         .collect();
     Neo4jQueryResult {
@@ -155,6 +160,22 @@ pub fn build_query_result(column_names: Vec<String>, rows: Vec<Vec<BoltLike>>) -
             },
         },
         graph,
+    }
+}
+
+fn value_type_of(value: &Value) -> ValueType {
+    match value {
+        Value::Null => ValueType::Null,
+        Value::Boolean(_) => ValueType::Boolean,
+        Value::Integer(_) => ValueType::Integer,
+        Value::Float(_) => ValueType::Float,
+        Value::Decimal(_) => ValueType::Decimal,
+        Value::Text(_) => ValueType::Text,
+        Value::DateTime(_) => ValueType::DateTime,
+        Value::Json(_) => ValueType::Json,
+        Value::Binary(_) => ValueType::Binary,
+        Value::Vector(_) => ValueType::Vector,
+        Value::DatabaseSpecific(_) => ValueType::DatabaseSpecific,
     }
 }
 
@@ -273,5 +294,18 @@ mod tests {
         );
         assert_eq!(result.graph.nodes.len(), 1);
         assert_eq!(result.table.rows.len(), 2);
+    }
+
+    #[test]
+    fn build_query_result_infers_column_value_type_from_first_non_null_value() {
+        let result = build_query_result(
+            vec!["n".to_string(), "count".to_string()],
+            vec![
+                vec![BoltLike::Scalar(Value::Null), BoltLike::Scalar(Value::Integer(3))],
+                vec![BoltLike::Node(sample_node("1", "Person")), BoltLike::Scalar(Value::Integer(4))],
+            ],
+        );
+        assert_eq!(result.table.columns[0].value_type, ValueType::Json);
+        assert_eq!(result.table.columns[1].value_type, ValueType::Integer);
     }
 }

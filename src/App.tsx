@@ -294,6 +294,7 @@ export function App() {
           setSelectedTable(null);
           setSelectedDataset(null);
           setSelectedRedisKey(null);
+          setSelectedNeo4jQuery(null);
         }}
       />
     </main>
