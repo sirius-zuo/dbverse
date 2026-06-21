@@ -8,6 +8,7 @@ use crate::errors::{AppError, AppRuntimeError};
 use crate::result_model::ResultSet;
 
 pub mod lancedb;
+pub mod neo4j_connector;
 pub mod postgres;
 pub mod redis_connector;
 pub mod sqlite;
@@ -82,6 +83,19 @@ impl ConnectorRegistry {
                 supports_functions: false,
                 supports_key_browse: true,
                 supports_ttl: true,
+            },
+            DatabaseKind::Neo4j => ConnectorCapabilities {
+                supports_sql: false,
+                supports_write_queries: true,
+                supports_explain: false,
+                supports_transactions: false,
+                supports_vector_search: false,
+                supports_embedding_search: false,
+                supports_schema_sql: false,
+                supports_indexes: false,
+                supports_functions: false,
+                supports_key_browse: false,
+                supports_ttl: false,
             },
         }
     }

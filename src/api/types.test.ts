@@ -29,4 +29,23 @@ describe("shared api types", () => {
     const t: Tab = { id: "1", type: "new-connection", kind: "sqlite" };
     expect(t.type).toBe("new-connection");
   });
+
+  it("represents a neo4j profile with scheme and database", () => {
+    const profile: ConnectionProfile = {
+      id: "00000000-0000-4000-8000-000000000002",
+      displayName: "Local Neo4j",
+      kind: "neo4j",
+      config: {
+        kind: "neo4j",
+        host: "localhost",
+        port: 7687,
+        scheme: "bolt",
+        username: "neo4j",
+        database: "neo4j"
+      },
+      secretRefs: [],
+      lastUsedAt: null
+    };
+    expect(profile.config.kind).toBe("neo4j");
+  });
 });

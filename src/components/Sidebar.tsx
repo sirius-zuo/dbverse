@@ -19,6 +19,7 @@ interface Props {
   onTableSelect(profile: ConnectionProfile, tableId: string, schema: TableSchema): void;
   onDatasetSelect(profile: ConnectionProfile, datasetId: string, schema: LanceDbDatasetSchema): void;
   onRedisKeySelect(profile: ConnectionProfile, key: string): void;
+  onNeo4jQuerySelect(profile: ConnectionProfile, cypher: string): void;
   selectedTable: TableSelection | null;
   selectedDataset: DatasetSelection | null;
 }
@@ -38,6 +39,7 @@ export function Sidebar({
   onTableSelect,
   onDatasetSelect,
   onRedisKeySelect,
+  onNeo4jQuerySelect,
   selectedTable,
   selectedDataset,
 }: Props) {
@@ -133,6 +135,7 @@ export function Sidebar({
             onTableSelect={(tableId, schema) => onTableSelect(activeProfile, tableId, schema)}
             onDatasetSelect={(datasetId, schema) => onDatasetSelect(activeProfile, datasetId, schema)}
             onRedisKeySelect={(key) => onRedisKeySelect(activeProfile, key)}
+            onNeo4jQuerySelect={(cypher) => onNeo4jQuerySelect(activeProfile, cypher)}
           />
         </div>
       )}

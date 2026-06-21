@@ -2,6 +2,7 @@ pub mod connectors;
 pub mod domain;
 pub mod embeddings;
 pub mod errors;
+pub mod neo4j_model;
 pub mod profiles;
 pub mod query_safety;
 pub mod redis_model;
@@ -16,7 +17,8 @@ use connectors::ConnectorRegistry;
 use domain::{ConnectionProfile, ConnectorCapabilities, DatabaseKind};
 use errors::{AppError, AppErrorCategory, AppRuntimeError};
 use profiles::{load_profiles, save_profiles, validate_profile};
-use query_safety::{classify_sql, StatementClassification};
+use query_safety::{classify_cypher, classify_sql, StatementClassification};
+use neo4j_model::Neo4jQueryResult;
 use sqlite_schema::{get_table_page, get_table_schema, list_indexes, list_tables, list_views};
 use sqlite_schema::{FilterOp, ColumnFilter};
 use sqlite_schema::{sqlite_get_table_page_sorted as sqlite_schema_get_table_page_sorted, sqlite_get_total_rows as sqlite_schema_get_total_rows};
@@ -430,6 +432,36 @@ async fn redis_get_key(
     connectors::redis_connector::get_redis_key(&profile, password.as_deref(), &key).await
 }
 
+#[tauri::command]
+fn classify_cypher_statement(cypher: String) -> StatementClassification {
+    classify_cypher(&cypher)
+}
+
+#[tauri::command]
+async fn neo4j_execute_query(
+    profile: domain::ConnectionProfile,
+    password: Option<String>,
+    cypher: String,
+) -> Result<Neo4jQueryResult, AppRuntimeError> {
+    connectors::neo4j_connector::execute_neo4j_query(&profile, password.as_deref(), &cypher).await
+}
+
+#[tauri::command]
+async fn neo4j_list_labels(
+    profile: domain::ConnectionProfile,
+    password: Option<String>,
+) -> Result<Vec<String>, AppRuntimeError> {
+    connectors::neo4j_connector::list_neo4j_labels(&profile, password.as_deref()).await
+}
+
+#[tauri::command]
+async fn neo4j_list_relationship_types(
+    profile: domain::ConnectionProfile,
+    password: Option<String>,
+) -> Result<Vec<String>, AppRuntimeError> {
+    connectors::neo4j_connector::list_neo4j_relationship_types(&profile, password.as_deref()).await
+}
+
 pub fn run() {
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
@@ -456,7 +488,11 @@ pub fn run() {
             lancedb_query_dataset,
             redis_execute_command,
             redis_scan_keys,
-            redis_get_key
+            redis_get_key,
+            classify_cypher_statement,
+            neo4j_execute_query,
+            neo4j_list_labels,
+            neo4j_list_relationship_types
         ])
         .run(tauri::generate_context!())
         .expect("failed to run dbverse");

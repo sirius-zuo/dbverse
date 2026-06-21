@@ -45,6 +45,30 @@ impl AppError {
             operation_id: None,
         }
     }
+
+    pub fn connection_failed(
+        message: impl Into<String>,
+        recovery_hint: impl Into<String>,
+        cause: impl fmt::Display,
+    ) -> Self {
+        Self {
+            category: AppErrorCategory::ConnectionFailed,
+            message: message.into(),
+            recovery_hint: Some(recovery_hint.into()),
+            technical_details: Some(cause.to_string()),
+            operation_id: None,
+        }
+    }
+
+    pub fn query_failed(message: impl Into<String>, cause: impl fmt::Display) -> Self {
+        Self {
+            category: AppErrorCategory::QueryError,
+            message: message.into(),
+            recovery_hint: None,
+            technical_details: Some(cause.to_string()),
+            operation_id: None,
+        }
+    }
 }
 
 #[derive(Debug, Error)]

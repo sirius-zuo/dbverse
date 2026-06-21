@@ -16,6 +16,10 @@ export async function classifyStatement(sql: string): Promise<StatementClassific
   return invoke<StatementClassification>("classify_statement", { sql });
 }
 
+export async function classifyCypherStatement(cypher: string): Promise<StatementClassification> {
+  return invoke<StatementClassification>("classify_cypher_statement", { cypher });
+}
+
 export async function getCapabilitiesForKind(
   kind: DatabaseKind
 ): Promise<ConnectorCapabilities> {

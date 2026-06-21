@@ -19,6 +19,7 @@ const baseProps = {
   onTableSelect: vi.fn(),
   onDatasetSelect: vi.fn(),
   onRedisKeySelect: vi.fn(),
+  onNeo4jQuerySelect: vi.fn(),
   selectedTable: null,
   selectedDataset: null,
 };

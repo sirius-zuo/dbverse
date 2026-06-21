@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import type { ConnectionProfile, TableSchema, LanceDbDatasetSchema, ResultValue } from "../api/types";
 import {
   sqliteListTables,
@@ -9,6 +9,7 @@ import {
 import { listLanceDbDatasets, queryLanceDbDataset } from "../api/lancedb";
 import { postgresExecuteQuery } from "../api/postgres";
 import { redisScanKeys } from "../api/redis";
+import { neo4jListLabels, neo4jListRelationshipTypes } from "../api/neo4j";
 
 export interface NamespaceNode {
   label: string;
@@ -42,6 +43,7 @@ interface SidebarTreeProps {
   onTableSelect(tableId: string, schema: TableSchema): void;
   onDatasetSelect(datasetId: string, schema: LanceDbDatasetSchema): void;
   onRedisKeySelect(key: string): void;
+  onNeo4jQuerySelect(cypher: string): void;
 }
 
 interface TreeGroup {
@@ -62,6 +64,30 @@ function cellText(cell: ResultValue | undefined): string {
   return "";
 }
 
+function loadNeo4jGroup(
+  fetcher: () => Promise<string[]>,
+  setItems: (items: string[]) => void,
+  setLoading: (loading: boolean) => void,
+  setError: (error: string | null) => void,
+  fallbackMessage: string,
+  isCancelled: () => boolean
+): void {
+  setLoading(true);
+  setError(null);
+  fetcher()
+    .then((items) => { if (!isCancelled()) setItems(items); })
+    .catch((err) => {
+      if (!isCancelled()) {
+        setError(
+          typeof err === "object" && err !== null && "message" in err
+            ? String((err as Record<string, unknown>).message)
+            : fallbackMessage
+        );
+      }
+    })
+    .finally(() => { if (!isCancelled()) setLoading(false); });
+}
+
 function extractPgError(error: unknown): string {
   if (error instanceof Error) return error.message;
   if (typeof error === "object" && error !== null) {
@@ -80,6 +106,7 @@ export function SidebarTree({
   onTableSelect,
   onDatasetSelect,
   onRedisKeySelect,
+  onNeo4jQuerySelect,
 }: SidebarTreeProps) {
   const [sqliteGroups, setSqliteGroups] = useState<TreeGroup[]>([]);
   const [sqliteLoading, setSqliteLoading] = useState(true);
@@ -103,6 +130,13 @@ export function SidebarTree({
   const [redisError, setRedisError] = useState<string | null>(null);
   const [redisNextCursor, setRedisNextCursor] = useState<number>(0);
   const [redisLoadingMore, setRedisLoadingMore] = useState(false);
+  const isNeo4j = profile.config.kind === "neo4j";
+  const [neo4jLabels, setNeo4jLabels] = useState<string[]>([]);
+  const [neo4jLabelsLoading, setNeo4jLabelsLoading] = useState(true);
+  const [neo4jLabelsError, setNeo4jLabelsError] = useState<string | null>(null);
+  const [neo4jRelTypes, setNeo4jRelTypes] = useState<string[]>([]);
+  const [neo4jRelTypesLoading, setNeo4jRelTypesLoading] = useState(true);
+  const [neo4jRelTypesError, setNeo4jRelTypesError] = useState<string | null>(null);
 
   // Load SQLite tree
   useEffect(() => {
@@ -280,6 +314,42 @@ export function SidebarTree({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isRedis, profile.id, sessionPassword]);
 
+  // Load Neo4j labels and relationship types independently, so a failure in
+  // one does not block the other (each tracks its own loading/error state).
+  useEffect(() => {
+    if (!isNeo4j || sessionPassword === undefined) {
+      setNeo4jLabels([]);
+      setNeo4jLabelsLoading(false);
+      setNeo4jLabelsError(null);
+      setNeo4jRelTypes([]);
+      setNeo4jRelTypesLoading(false);
+      setNeo4jRelTypesError(null);
+      return;
+    }
+    let cancelled = false;
+    const isCancelled = () => cancelled;
+
+    loadNeo4jGroup(
+      () => neo4jListLabels(profile, sessionPassword || null),
+      setNeo4jLabels,
+      setNeo4jLabelsLoading,
+      setNeo4jLabelsError,
+      "Failed to load labels",
+      isCancelled
+    );
+    loadNeo4jGroup(
+      () => neo4jListRelationshipTypes(profile, sessionPassword || null),
+      setNeo4jRelTypes,
+      setNeo4jRelTypesLoading,
+      setNeo4jRelTypesError,
+      "Failed to load relationship types",
+      isCancelled
+    );
+
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isNeo4j, profile.id, sessionPassword]);
+
   // Show loading for the active database type only
   if (
     (sqlitePath && sqliteLoading) ||
@@ -380,12 +450,56 @@ export function SidebarTree({
         </div>
       )}
 
+      {/* Neo4j labels and relationship types */}
+      {isNeo4j && sessionPassword === undefined && (
+        <div className="sidebar-tree-empty">Open connection to browse labels</div>
+      )}
+      {isNeo4j && sessionPassword !== undefined && (
+        <>
+          <Neo4jGroup
+            title="Labels"
+            loading={neo4jLabelsLoading}
+            error={neo4jLabelsError}
+            items={neo4jLabels}
+            onItemSelect={(label) => onNeo4jQuerySelect(`MATCH (n:${label}) RETURN n LIMIT 50`)}
+          />
+          <Neo4jGroup
+            title="Relationship Types"
+            loading={neo4jRelTypesLoading}
+            error={neo4jRelTypesError}
+            items={neo4jRelTypes}
+            onItemSelect={(type) => onNeo4jQuerySelect(`MATCH (a)-[r:${type}]->(b) RETURN a, r, b LIMIT 50`)}
+          />
+        </>
+      )}
+
       {/* Empty state */}
-      {!isRedis && sqliteGroups.length === 0 && datasets.length === 0 && pgEntries.length === 0 && (
+      {!isRedis && !isNeo4j && sqliteGroups.length === 0 && datasets.length === 0 && pgEntries.length === 0 && (
         <div className="sidebar-tree-empty">
           {isPg && sessionPassword === undefined ? "Open connection to browse tables" : "No tables found"}
         </div>
       )}
+    </div>
+  );
+}
+
+function CollapsibleTreeGroup({
+  label,
+  defaultExpanded = true,
+  children,
+}: {
+  label: ReactNode;
+  defaultExpanded?: boolean;
+  children: ReactNode;
+}) {
+  const [expanded, setExpanded] = useState(defaultExpanded);
+  return (
+    <div className="tree-group">
+      <button className="tree-group-header" onClick={() => setExpanded(!expanded)}>
+        <span className="tree-group-label">{label}</span>
+        <span className="tree-group-toggle">{expanded ? "▾" : "▸"}</span>
+      </button>
+      {expanded && <div className="tree-group-items">{children}</div>}
     </div>
   );
 }
@@ -401,27 +515,47 @@ function PgEntryGroup({
   selectedTable: string | null;
   onEntrySelect(entry: PgEntry): void;
 }) {
-  const [expanded, setExpanded] = useState(true);
   return (
-    <div className="tree-group">
-      <button className="tree-group-header" onClick={() => setExpanded(!expanded)}>
-        <span className="tree-group-label">{label}</span>
-        <span className="tree-group-toggle">{expanded ? "▾" : "▸"}</span>
-      </button>
-      {expanded && (
-        <div className="tree-group-items">
-          {entries.map((entry) => (
-            <button
-              key={entry.id}
-              className={`tree-item ${selectedTable === entry.id ? "tree-item-active" : ""}`}
-              onClick={() => onEntrySelect(entry)}
-            >
-              {entry.name}
-            </button>
-          ))}
-        </div>
+    <CollapsibleTreeGroup label={label}>
+      {entries.map((entry) => (
+        <button
+          key={entry.id}
+          className={`tree-item ${selectedTable === entry.id ? "tree-item-active" : ""}`}
+          onClick={() => onEntrySelect(entry)}
+        >
+          {entry.name}
+        </button>
+      ))}
+    </CollapsibleTreeGroup>
+  );
+}
+
+function Neo4jGroup({
+  title,
+  loading,
+  error,
+  items,
+  onItemSelect,
+}: {
+  title: string;
+  loading: boolean;
+  error: string | null;
+  items: string[];
+  onItemSelect(item: string): void;
+}) {
+  return (
+    <CollapsibleTreeGroup label={`${title} (${items.length})`}>
+      {loading && <div className="tree-item tree-item-loading">Loading...</div>}
+      {error && <div className="tree-item tree-item-error">{error}</div>}
+      {!loading && !error && items.length === 0 && (
+        <div className="sidebar-tree-empty">None found</div>
       )}
-    </div>
+      {!loading && !error && items.map((item) => (
+        <button key={item} className="tree-item" onClick={() => onItemSelect(item)}>
+          {item}
+        </button>
+      ))}
+    </CollapsibleTreeGroup>
   );
 }
 
@@ -436,8 +570,6 @@ function TreeGroupItem({
   onTableSelect(tableId: string, schema: TableSchema): void;
   path: string;
 }) {
-  const [expanded, setExpanded] = useState(group.type !== "indexes");
-
   async function handleSelect(itemId: string, itemName: string) {
     if (group.type === "indexes") {
       const parts = itemId.split(":");
@@ -459,28 +591,17 @@ function TreeGroupItem({
   }
 
   return (
-    <div className="tree-group">
-      <button
-        className="tree-group-header"
-        onClick={() => setExpanded(!expanded)}
-      >
-        <span className="tree-group-label">{group.label}</span>
-        <span className="tree-group-toggle">{expanded ? "▾" : "▸"}</span>
-      </button>
-      {expanded && (
-        <div className="tree-group-items">
-          {group.items.map((item) => (
-            <button
-              key={item.id}
-              className={`tree-item ${selectedTable === item.id ? "tree-item-active" : ""}`}
-              onClick={() => handleSelect(item.id, item.name)}
-            >
-              {item.name}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
+    <CollapsibleTreeGroup label={group.label} defaultExpanded={group.type !== "indexes"}>
+      {group.items.map((item) => (
+        <button
+          key={item.id}
+          className={`tree-item ${selectedTable === item.id ? "tree-item-active" : ""}`}
+          onClick={() => handleSelect(item.id, item.name)}
+        >
+          {item.name}
+        </button>
+      ))}
+    </CollapsibleTreeGroup>
   );
 }
 
@@ -495,7 +616,6 @@ function LanceDbDatasetGroup({
   onDatasetSelect(datasetId: string, schema: LanceDbDatasetSchema): void;
   profile: ConnectionProfile;
 }) {
-  const [expanded, setExpanded] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -529,33 +649,22 @@ function LanceDbDatasetGroup({
   }
 
   return (
-    <div className="tree-group">
-      <button
-        className="tree-group-header"
-        onClick={() => setExpanded(!expanded)}
-      >
-        <span className="tree-group-label">Datasets ({datasets.length})</span>
-        <span className="tree-group-toggle">{expanded ? "▾" : "▸"}</span>
-      </button>
-      {expanded && (
-        <div className="tree-group-items">
-          {loading && <div className="tree-item tree-item-loading">Loading...</div>}
-          {error && <div className="tree-item tree-item-error">{error}</div>}
-          {datasets.map((item) => (
-            <button
-              key={item.id}
-              className={`tree-item ${selectedTable === item.id ? "tree-item-active" : ""}`}
-              onClick={() => handleSelect(item.id, item.name)}
-            >
-              {item.name}
-            </button>
-          ))}
-          {!loading && !error && datasets.length === 0 && (
-            <div className="sidebar-tree-empty">No datasets found</div>
-          )}
-        </div>
+    <CollapsibleTreeGroup label={`Datasets (${datasets.length})`}>
+      {loading && <div className="tree-item tree-item-loading">Loading...</div>}
+      {error && <div className="tree-item tree-item-error">{error}</div>}
+      {datasets.map((item) => (
+        <button
+          key={item.id}
+          className={`tree-item ${selectedTable === item.id ? "tree-item-active" : ""}`}
+          onClick={() => handleSelect(item.id, item.name)}
+        >
+          {item.name}
+        </button>
+      ))}
+      {!loading && !error && datasets.length === 0 && (
+        <div className="sidebar-tree-empty">No datasets found</div>
       )}
-    </div>
+    </CollapsibleTreeGroup>
   );
 }
 
@@ -600,7 +709,6 @@ function RedisNamespaceNode({
   selectedKey: string | null;
   onKeySelect(key: string): void;
 }) {
-  const [expanded, setExpanded] = useState(false);
   const isLeaf = node.children.size === 0;
 
   if (isLeaf) {
@@ -615,31 +723,23 @@ function RedisNamespaceNode({
   }
 
   return (
-    <div className="tree-group">
-      <button className="tree-group-header" onClick={() => setExpanded(!expanded)}>
-        <span className="tree-group-label">{node.label}</span>
-        <span className="tree-group-toggle">{expanded ? "▾" : "▸"}</span>
-      </button>
-      {expanded && (
-        <div className="tree-group-items">
-          {node.fullKey && (
-            <button
-              className={`tree-item ${selectedKey === node.fullKey ? "tree-item-active" : ""}`}
-              onClick={() => node.fullKey && onKeySelect(node.fullKey)}
-            >
-              (this key)
-            </button>
-          )}
-          {Array.from(node.children.values()).map((child) => (
-            <RedisNamespaceNode
-              key={child.label}
-              node={child}
-              selectedKey={selectedKey}
-              onKeySelect={onKeySelect}
-            />
-          ))}
-        </div>
+    <CollapsibleTreeGroup label={node.label} defaultExpanded={false}>
+      {node.fullKey && (
+        <button
+          className={`tree-item ${selectedKey === node.fullKey ? "tree-item-active" : ""}`}
+          onClick={() => node.fullKey && onKeySelect(node.fullKey)}
+        >
+          (this key)
+        </button>
       )}
-    </div>
+      {Array.from(node.children.values()).map((child) => (
+        <RedisNamespaceNode
+          key={child.label}
+          node={child}
+          selectedKey={selectedKey}
+          onKeySelect={onKeySelect}
+        />
+      ))}
+    </CollapsibleTreeGroup>
   );
 }
